@@ -142,10 +142,9 @@ func (fc *FakeClock) Tick(d time.Duration) <-chan time.Time {
 	return fc.NewTicker(d).C()
 }
 
-// NewTimer creates a FakeTimer which fires after the given interval.  The semantics
-// of time.Timer are preserved, including the unusual Stop/Reset behavior.
-//
-// The returned Timer can always be safely cast to a *FakeTimer.
+// NewTimer creates a Timer that fires when this FakeClock has been advanced
+// by at least the given duration.  The returned timer can be stopped or reset in
+// the usual fashion, which will affect what happens when the FakeClock is advanced.
 func (fc *FakeClock) NewTimer(d time.Duration) Timer {
 	fc.lock.Lock()
 	ft := newFakeTimer(fc, fc.now.Add(d))
@@ -159,10 +158,9 @@ func (fc *FakeClock) NewTimer(d time.Duration) Timer {
 	return ft
 }
 
-// NewTicker creates a FakeTicker which fires on the given interval.  The semantics
-// of time.Ticker are preserved.
-//
-// The returned Ticker can always be safely cast to a *FakeTicker.
+// NewTicker creates a Ticker that fires when this FakeClock is advanced by
+// increments of the given duration.  The returned ticker can be stopped or
+// reset in the usual fashion.
 func (fc *FakeClock) NewTicker(d time.Duration) Ticker {
 	fc.lock.Lock()
 	ft := newFakeTicker(fc, d, fc.now)
