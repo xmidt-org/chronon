@@ -76,18 +76,3 @@ func (ft *FakeTicker) Stop() {
 		},
 	)
 }
-
-// Fire forces this FakeTicker to fire a tick event, even if it had been stopped.
-// The time used for the tick is whatever the next fire time was.
-//
-// Calling this method multiple times without advancing the containing FakeClock
-// will result in multiple ticks with the same timestamp.  If the tick time value is
-// important to testing code, advance the FakeClock or set the FakeClock's time instead
-// of using this method.
-func (ft *FakeTicker) Fire() {
-	ft.fc.doWith(
-		func(time.Time, *listeners) {
-			sendTime(ft.c, ft.next)
-		},
-	)
-}

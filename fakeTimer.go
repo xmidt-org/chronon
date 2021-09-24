@@ -114,25 +114,3 @@ func (ft *FakeTimer) Stop() (stopped bool) {
 
 	return
 }
-
-// Fire forces this FakeTimer to fire its time event if it hasn't already done so.
-// The time value sent will be the current time value of the FakeClock.  This method
-// leaves the FakeTimer in the same state as if advancing the clock had caused the
-// timer to fire.
-//
-// If this method caused this FakeTimer to fire, this method returns true.  Otherwise,
-// this method returns false to indicate that the timer had already fired.
-func (ft *FakeTimer) Fire() (fired bool) {
-	ft.fc.doWith(
-		func(now time.Time, ls *listeners) {
-			if !ft.fired {
-				ft.fired = true
-				fired = true
-				ls.remove(ft)
-				ft.fire(now)
-			}
-		},
-	)
-
-	return
-}
