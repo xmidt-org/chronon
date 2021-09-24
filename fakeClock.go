@@ -34,7 +34,7 @@ func (fc *FakeClock) doWith(f func(time.Time, *listeners)) {
 }
 
 // Add updates the current time of this fake clock by adding
-// the given duration to the prsent value of now.  Any sleepers,
+// the given duration to the present value of now.  Any sleepers,
 // tickers, timers, etc will fire if this clock is advanced sufficiently.
 //
 // The duration value can be negative, which simply moves this clock
@@ -149,7 +149,7 @@ func (fc *FakeClock) NewTimer(d time.Duration) Timer {
 // NewTicker creates a FakeTicker which fires on the given interval.  The semantics
 // of time.Ticker are preserved.
 //
-// The returned Ticker can always be safely case to a *FakeTicker.
+// The returned Ticker can always be safely cast to a *FakeTicker.
 func (fc *FakeClock) NewTicker(d time.Duration) Ticker {
 	fc.lock.Lock()
 	ft := newFakeTicker(fc, d, fc.now)
