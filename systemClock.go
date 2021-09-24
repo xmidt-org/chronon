@@ -68,7 +68,7 @@ func (sc systemClock) AfterFunc(d time.Duration, f func()) Timer {
 }
 
 func (sc systemClock) Tick(d time.Duration) <-chan time.Time {
-	return time.Tick(d)
+	return time.Tick(d) // nolint:staticcheck
 }
 
 func (sc systemClock) NewTicker(d time.Duration) Ticker {
