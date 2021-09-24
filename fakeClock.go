@@ -5,6 +5,22 @@ import (
 	"time"
 )
 
+// Adder represents a source of time values that can be modified
+// by adding a duration.  *FakeClock implements this interface.
+type Adder interface {
+	// Add adjusts the current time by the given delta.  The delta
+	// can be negative or 0.  This method returns the new value
+	// of the current time.
+	Add(time.Duration) time.Time
+}
+
+// Setter represents a source of time values that can be updated
+// using absolute time.  *FakeClock implements this interface.
+type Setter interface {
+	// Set adjusts the current time to the given value.
+	Set(time.Time)
+}
+
 // FakeClock is a Clock implementation that allows control over how
 // the clock advances.
 type FakeClock struct {
@@ -15,6 +31,8 @@ type FakeClock struct {
 }
 
 var _ Clock = (*FakeClock)(nil)
+var _ Adder = (*FakeClock)(nil)
+var _ Setter = (*FakeClock)(nil)
 
 // NewFakeClock creates a FakeClock that uses the given time as the
 // initial current time.
@@ -33,14 +51,9 @@ func (fc *FakeClock) doWith(f func(time.Time, *listeners)) {
 	f(fc.now, fc.listeners)
 }
 
-// Add updates the current time of this fake clock by adding
-// the given duration to the present value of now.  Any sleepers,
-// tickers, timers, etc will fire if this clock is advanced sufficiently.
-//
-// The duration value can be negative, which simply moves this clock
-// backwards.
-//
-// This methods returns the new value for Now().
+// Add satisfies the Adder interface.  Updating this fake clock's
+// time through this method is atomic with respect to all the other
+// methods.
 func (fs *FakeClock) Add(d time.Duration) (now time.Time) {
 	fs.lock.Lock()
 	now = fs.now.Add(d)

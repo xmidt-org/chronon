@@ -41,18 +41,24 @@ type Timer interface {
 	Stop() bool
 }
 
-// Clock represents a standard set of time operations.  Methods of this interface
-// correspond to the functionality in the time package.
-type Clock interface {
-	// Now returns this clock's notion of the current time.
+// Time represents a notion of a local time value.  This interface may be backed by
+// the time package or by an artificial source of time, such as a FakeClock.
+type Time interface {
+	// Now returns ths instance's notion of the current time.
 	Now() time.Time
 
-	// Since returns the duration since this clock's current time.
+	// Since returns the duration since this instance's current time.
 	Since(t time.Time) time.Duration
 
-	// Until returns the duration between this clock's current time and
+	// Until returns the duration between this instance's current time and
 	// the given time.
 	Until(t time.Time) time.Duration
+}
+
+// Clock represents a standard set of time operations.  Implementations are
+// drop-in replacements for the time package.
+type Clock interface {
+	Time
 
 	// Sleep blocks until this Clock believes that the given
 	// time duration has elapsed.
