@@ -16,24 +16,22 @@ type listener interface {
 	onAdvance(time.Time) bool
 }
 
-// listeners represents a mutable slice of listeners
-type listeners struct {
-	l []listener
-}
+// listeners is a mutable list of objects which can respond to a clock's time change.
+type listeners []listener
 
 // deleteAt removes the listener at the given index.  This method does no bounds checking.
 func (ls *listeners) deleteAt(i int) {
-	last := len(ls.l) - 1
-	ls.l[i], ls.l[last] = ls.l[last], nil
-	(ls.l) = (ls.l)[:last]
+	last := len(*ls) - 1
+	(*ls)[i], (*ls)[last] = (*ls)[last], nil
+	*ls = (*ls)[:last]
 }
 
 // onAdvance dispatches an advance event to each listener and removes the
 // listeners whose onAdvance method returns true.
 func (ls *listeners) onAdvance(t time.Time) {
 	var i int
-	for i < len(ls.l) {
-		if ls.l[i].onAdvance(t) {
+	for i < len(*ls) {
+		if (*ls)[i].onAdvance(t) {
 			// this callback is finished
 			ls.deleteAt(i)
 		} else {
@@ -47,13 +45,13 @@ func (ls *listeners) onAdvance(t time.Time) {
 func (ls *listeners) add(v listener) {
 	// scan for v first.  we're optimized around fast traversal of a
 	// small number of listeners, so a simple linear search will suffice.
-	for _, l := range ls.l {
+	for _, l := range *ls {
 		if v == l {
 			return
 		}
 	}
 
-	ls.l = append(ls.l, v)
+	*ls = append(*ls, v)
 }
 
 // remove deletes the given listener.  This method is idempotent:
@@ -63,8 +61,8 @@ func (ls *listeners) add(v listener) {
 // idempotent.
 func (ls *listeners) remove(v listener) {
 	var i int
-	for i < len(ls.l) {
-		if ls.l[i] == v {
+	for i < len(*ls) {
+		if (*ls)[i] == v {
 			ls.deleteAt(i)
 		} else {
 			i++

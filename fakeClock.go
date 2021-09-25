@@ -27,7 +27,7 @@ type FakeClock struct {
 	lock sync.RWMutex
 
 	now        time.Time
-	listeners  *listeners
+	listeners  listeners
 	onSleepers notifiers
 }
 
@@ -39,8 +39,7 @@ var _ Setter = (*FakeClock)(nil)
 // initial current time.
 func NewFakeClock(start time.Time) *FakeClock {
 	return &FakeClock{
-		now:       start,
-		listeners: new(listeners),
+		now: start,
 	}
 }
 
@@ -49,7 +48,7 @@ func NewFakeClock(start time.Time) *FakeClock {
 func (fc *FakeClock) doWith(f func(time.Time, *listeners)) {
 	fc.lock.Lock()
 	defer fc.lock.Unlock()
-	f(fc.now, fc.listeners)
+	f(fc.now, &fc.listeners)
 }
 
 // Add satisfies the Adder interface.  Updating this fake clock's
