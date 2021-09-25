@@ -26,8 +26,9 @@ type Setter interface {
 type FakeClock struct {
 	lock sync.RWMutex
 
-	now       time.Time
-	listeners *listeners
+	now        time.Time
+	listeners  *listeners
+	onSleepers notifiers
 }
 
 var _ Clock = (*FakeClock)(nil)
@@ -100,7 +101,11 @@ func (fc *FakeClock) Until(t time.Time) (d time.Duration) {
 }
 
 // Sleep blocks until this clock is advanced sufficiently so that
-// the given duration elapses.
+// the given duration elapses.  If d is nonpositive, this function
+// immediately returns exactly as with time.Sleep.
+//
+// If d is positive, then any channel registered with NotifyOnSleep
+// will receive d prior to blocking.
 func (fc *FakeClock) Sleep(d time.Duration) {
 	if d <= 0 {
 		// consistent with time.Sleep
@@ -110,9 +115,32 @@ func (fc *FakeClock) Sleep(d time.Duration) {
 	fc.lock.Lock()
 	sleeper := newSleeperAt(fc.now.Add(d))
 	fc.listeners.add(sleeper)
+	fc.onSleepers.notify(d)
 	fc.lock.Unlock()
 
 	sleeper.wait()
+}
+
+// NotifyOnSleep registers a channel that receives the intervals for any goroutine
+// which invokes Sleep.  Calling code must service the channel promptly, as Sleep
+// does not drop events sent to this channel.
+//
+// A sleep channel is useful when testing concurrent code where test code
+// needs to block waiting for a sleeper before modifying this FakeClock's time.
+// When used for this purpose, be sure to register a sleep channel before
+// invoking Sleep, usually in test setup code.
+func (fc *FakeClock) NotifyOnSleep(ch chan<- time.Duration) {
+	fc.lock.Lock()
+	fc.onSleepers.add(ch)
+	fc.lock.Unlock()
+}
+
+// StopOnSleep removes a channel from the list of channels that receive notifications
+// for Sleep.  If the given channel is not present, this method does nothing.
+func (fc *FakeClock) StopOnSleep(ch chan<- time.Duration) {
+	fc.lock.Lock()
+	fc.onSleepers.remove(ch)
+	fc.lock.Unlock()
 }
 
 // After returns a channel which receives a time after the given duration.
