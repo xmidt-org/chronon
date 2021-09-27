@@ -8,42 +8,9 @@ import (
 )
 
 type FakeClockSuite struct {
-	suite.Suite
+	ChannelSuite
 
 	now time.Time
-}
-
-func (suite *FakeClockSuite) requireNotDone(done <-chan struct{}) {
-	select {
-	case <-done:
-		suite.Require().Fail("The done channel should NOT have been signalled")
-	case <-time.After(100 * time.Millisecond):
-	}
-}
-
-func (suite *FakeClockSuite) requireDone(done <-chan struct{}) {
-	select {
-	case <-done:
-	case <-time.After(100 * time.Millisecond):
-		suite.Require().Fail("The done channel should have been signalled")
-	}
-}
-
-func (suite *FakeClockSuite) requireResult(result <-chan time.Time, expected time.Time) {
-	select {
-	case actual := <-result:
-		suite.Equal(expected, actual)
-	case <-time.After(100 * time.Millisecond):
-		suite.Require().Fail("A result should have been sent")
-	}
-}
-
-func (suite *FakeClockSuite) requireNoResult(result <-chan time.Time) {
-	select {
-	case <-result:
-		suite.Require().Fail("A result should NOT have been sent")
-	case <-time.After(100 * time.Millisecond):
-	}
 }
 
 func (suite *FakeClockSuite) SetupSuite() {
@@ -98,13 +65,13 @@ func (suite *FakeClockSuite) TestSleep() {
 
 			// ensure the other goroutine is actually blocked
 			sleepTime := <-onSleep
-			suite.requireNotDone(done)
+			suite.requireNoSignal(done)
 
 			fc.Add(sleepTime / 2)
-			suite.requireNotDone(done)
+			suite.requireNoSignal(done)
 
 			fc.Add(sleepTime / 2)
-			suite.requireDone(done)
+			suite.requireSignal(done)
 		})
 
 		suite.Run("Set", func() {
@@ -123,14 +90,14 @@ func (suite *FakeClockSuite) TestSleep() {
 
 			// ensure the other goroutine is actually blocked
 			sleepTime := <-onSleep
-			suite.requireNotDone(done)
+			suite.requireNoSignal(done)
 
 			// moving backwards shouldn't affect anything
 			fc.Set(suite.now.Add(-100 * time.Second))
-			suite.requireNotDone(done)
+			suite.requireNoSignal(done)
 
 			fc.Set(suite.now.Add(sleepTime))
-			suite.requireDone(done)
+			suite.requireSignal(done)
 		})
 
 		suite.Run("StopOnSleep", func() {
@@ -209,13 +176,13 @@ func (suite *FakeClockSuite) TestNewTimer() {
 				result <- (<-t.C())
 			}()
 
-			suite.requireNoResult(result)
+			suite.requireNoSignal(result)
 
 			fc.Add(d / 2)
-			suite.requireNoResult(result)
+			suite.requireNoSignal(result)
 
 			fc.Add(d / 2)
-			suite.requireResult(result, suite.now.Add(d))
+			suite.requireReceiveEqual(result, suite.now.Add(d))
 		})
 
 		suite.Run("Set", func() {
@@ -242,11 +209,11 @@ func (suite *FakeClockSuite) TestNewTimer() {
 				result <- (<-t.C())
 			}()
 
-			suite.requireNoResult(result)
+			suite.requireNoSignal(result)
 			fc.Set(suite.now.Add(-time.Second))
-			suite.requireNoResult(result)
+			suite.requireNoSignal(result)
 			fc.Set(suite.now.Add(d))
-			suite.requireResult(result, suite.now.Add(d))
+			suite.requireReceiveEqual(result, suite.now.Add(d))
 		})
 	})
 }
@@ -265,11 +232,11 @@ func (suite *FakeClockSuite) TestAfter() {
 		result <- (<-ch)
 	}()
 
-	suite.requireNoResult(result)
+	suite.requireNoSignal(result)
 	fc.Add(50 * time.Millisecond)
-	suite.requireNoResult(result)
+	suite.requireNoSignal(result)
 	fc.Add(50 * time.Millisecond)
-	suite.requireResult(result, suite.now.Add(100*time.Millisecond))
+	suite.requireReceiveEqual(result, suite.now.Add(100*time.Millisecond))
 }
 
 func (suite *FakeClockSuite) TestAfterFunc() {

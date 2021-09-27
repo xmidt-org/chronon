@@ -8,7 +8,7 @@ import (
 )
 
 type SleeperSuite struct {
-	suite.Suite
+	ChannelSuite
 
 	now    time.Time
 	wakeup time.Time
@@ -22,24 +22,6 @@ func (suite *SleeperSuite) SetupSuite() {
 	suite.after = suite.wakeup.Add(time.Second)
 }
 
-func (suite *SleeperSuite) requireSignalled(awaken <-chan struct{}) {
-	select {
-	case <-awaken:
-		// passing
-	default:
-		suite.Require().Fail("The awaken channel should have been signalled")
-	}
-}
-
-func (suite *SleeperSuite) requireNotSignalled(awaken <-chan struct{}) {
-	select {
-	case <-awaken:
-		suite.Require().Fail("The awaken channel should NOT have been signalled")
-	default:
-		// passing
-	}
-}
-
 func (suite *SleeperSuite) TestOnAdvance() {
 	suite.Run("Exact", func() {
 		s := newSleeperAt(
@@ -47,31 +29,31 @@ func (suite *SleeperSuite) TestOnAdvance() {
 		)
 
 		suite.Require().NotNil(s)
-		suite.requireNotSignalled(s.awaken)
+		suite.requireNoSignal(s.awaken)
 
 		// idempotent
 		suite.False(s.onAdvance(suite.now))
-		suite.requireNotSignalled(s.awaken)
+		suite.requireNoSignal(s.awaken)
 
 		// idempotent
 		suite.False(s.onAdvance(suite.now))
-		suite.requireNotSignalled(s.awaken)
+		suite.requireNoSignal(s.awaken)
 
 		// wakeup using the exact time value
 		suite.True(s.onAdvance(suite.wakeup))
-		suite.requireSignalled(s.awaken)
+		suite.requireSignal(s.awaken)
 
 		// idempotent
 		suite.True(s.onAdvance(suite.wakeup))
-		suite.requireSignalled(s.awaken)
+		suite.requireSignal(s.awaken)
 
 		// idempotent
 		suite.True(s.onAdvance(suite.after))
-		suite.requireSignalled(s.awaken)
+		suite.requireSignal(s.awaken)
 
 		// idempotent
 		suite.False(s.onAdvance(suite.now))
-		suite.requireSignalled(s.awaken)
+		suite.requireSignal(s.awaken)
 
 	})
 
@@ -81,31 +63,31 @@ func (suite *SleeperSuite) TestOnAdvance() {
 		)
 
 		suite.Require().NotNil(s)
-		suite.requireNotSignalled(s.awaken)
+		suite.requireNoSignal(s.awaken)
 
 		// idempotent
 		suite.False(s.onAdvance(suite.now))
-		suite.requireNotSignalled(s.awaken)
+		suite.requireNoSignal(s.awaken)
 
 		// idempotent
 		suite.False(s.onAdvance(suite.now))
-		suite.requireNotSignalled(s.awaken)
+		suite.requireNoSignal(s.awaken)
 
 		// wakeup using a value after the time value
 		suite.True(s.onAdvance(suite.after))
-		suite.requireSignalled(s.awaken)
+		suite.requireSignal(s.awaken)
 
 		// idempotent
 		suite.True(s.onAdvance(suite.wakeup))
-		suite.requireSignalled(s.awaken)
+		suite.requireSignal(s.awaken)
 
 		// idempotent
 		suite.True(s.onAdvance(suite.after))
-		suite.requireSignalled(s.awaken)
+		suite.requireSignal(s.awaken)
 
 		// idempotent
 		suite.False(s.onAdvance(suite.now))
-		suite.requireSignalled(s.awaken)
+		suite.requireSignal(s.awaken)
 
 	})
 }
