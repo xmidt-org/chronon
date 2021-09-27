@@ -64,14 +64,14 @@ func (suite *FakeClockSuite) TestSleep() {
 			}()
 
 			// ensure the other goroutine is actually blocked
-			sleepTime := <-onSleep
-			suite.requireNoSignal(done)
+			sleepTime := suite.requireReceive(onSleep, 100*time.Millisecond).(time.Duration)
+			suite.requireNoSignal(done, Immediate)
 
 			fc.Add(sleepTime / 2)
-			suite.requireNoSignal(done)
+			suite.requireNoSignal(done, Immediate)
 
 			fc.Add(sleepTime / 2)
-			suite.requireSignal(done)
+			suite.requireSignal(done, 100*time.Millisecond)
 		})
 
 		suite.Run("Set", func() {
@@ -90,14 +90,14 @@ func (suite *FakeClockSuite) TestSleep() {
 
 			// ensure the other goroutine is actually blocked
 			sleepTime := <-onSleep
-			suite.requireNoSignal(done)
+			suite.requireNoSignal(done, WaitALittle)
 
 			// moving backwards shouldn't affect anything
 			fc.Set(suite.now.Add(-100 * time.Second))
-			suite.requireNoSignal(done)
+			suite.requireNoSignal(done, WaitALittle)
 
 			fc.Set(suite.now.Add(sleepTime))
-			suite.requireSignal(done)
+			suite.requireSignal(done, WaitALittle)
 		})
 
 		suite.Run("StopOnSleep", func() {
@@ -165,24 +165,19 @@ func (suite *FakeClockSuite) TestNewTimer() {
 			fc.StopOnTimer(removed)
 			t := fc.NewTimer(100 * time.Millisecond)
 			d := <-onTimer // should have a value immediately
-
-			select {
-			case <-removed:
-				suite.Require().Fail("The removed channel shouldn't have been signalled when adding a timer")
-			default:
-			}
+			suite.requireNoSignal(removed, Immediate)
 
 			go func() {
 				result <- (<-t.C())
 			}()
 
-			suite.requireNoSignal(result)
+			suite.requireNoSignal(result, WaitALittle)
 
 			fc.Add(d / 2)
-			suite.requireNoSignal(result)
+			suite.requireNoSignal(result, WaitALittle)
 
 			fc.Add(d / 2)
-			suite.requireReceiveEqual(result, suite.now.Add(d))
+			suite.requireReceiveEqual(result, suite.now.Add(d), WaitALittle)
 		})
 
 		suite.Run("Set", func() {
@@ -198,22 +193,17 @@ func (suite *FakeClockSuite) TestNewTimer() {
 			fc.StopOnTimer(removed)
 			t := fc.NewTimer(100 * time.Millisecond)
 			d := <-onTimer // should have a value immediately
-
-			select {
-			case <-removed:
-				suite.Require().Fail("The removed channel shouldn't have been signalled when adding a timer")
-			default:
-			}
+			suite.requireNoSignal(removed, Immediate)
 
 			go func() {
 				result <- (<-t.C())
 			}()
 
-			suite.requireNoSignal(result)
+			suite.requireNoSignal(result, WaitALittle)
 			fc.Set(suite.now.Add(-time.Second))
-			suite.requireNoSignal(result)
+			suite.requireNoSignal(result, WaitALittle)
 			fc.Set(suite.now.Add(d))
-			suite.requireReceiveEqual(result, suite.now.Add(d))
+			suite.requireReceiveEqual(result, suite.now.Add(d), WaitALittle)
 		})
 	})
 }
@@ -232,11 +222,11 @@ func (suite *FakeClockSuite) TestAfter() {
 		result <- (<-ch)
 	}()
 
-	suite.requireNoSignal(result)
+	suite.requireNoSignal(result, WaitALittle)
 	fc.Add(50 * time.Millisecond)
-	suite.requireNoSignal(result)
+	suite.requireNoSignal(result, WaitALittle)
 	fc.Add(50 * time.Millisecond)
-	suite.requireReceiveEqual(result, suite.now.Add(100*time.Millisecond))
+	suite.requireReceiveEqual(result, suite.now.Add(100*time.Millisecond), WaitALittle)
 }
 
 func (suite *FakeClockSuite) TestAfterFunc() {
@@ -258,25 +248,9 @@ func (suite *FakeClockSuite) TestAfterFunc() {
 				})
 
 				suite.Nil(t.C())
-
-				select {
-				case d := <-onTimer:
-					suite.Equal(interval, d)
-				default:
-					suite.Require().Fail("The onTimer channel should have immediately received a value")
-				}
-
-				select {
-				case <-removed:
-					suite.Require().Fail("The removed channel shouldn't have been signalled when adding a timer")
-				default:
-				}
-
-				select {
-				case <-called:
-				default:
-					suite.Fail("The function should have been immediately called")
-				}
+				suite.requireReceiveEqual(onTimer, interval, Immediate)
+				suite.requireNoSignal(removed, Immediate)
+				suite.requireSignal(called, Immediate)
 			})
 		}
 	})

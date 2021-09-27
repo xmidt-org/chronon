@@ -29,31 +29,31 @@ func (suite *SleeperSuite) TestOnAdvance() {
 		)
 
 		suite.Require().NotNil(s)
-		suite.requireNoSignal(s.awaken)
+		suite.requireNoSignal(s.awaken, Immediate)
 
 		// idempotent
 		suite.False(s.onAdvance(suite.now))
-		suite.requireNoSignal(s.awaken)
+		suite.requireNoSignal(s.awaken, Immediate)
 
 		// idempotent
 		suite.False(s.onAdvance(suite.now))
-		suite.requireNoSignal(s.awaken)
+		suite.requireNoSignal(s.awaken, Immediate)
 
 		// wakeup using the exact time value
 		suite.True(s.onAdvance(suite.wakeup))
-		suite.requireSignal(s.awaken)
+		suite.requireSignal(s.awaken, Immediate)
 
 		// idempotent
 		suite.True(s.onAdvance(suite.wakeup))
-		suite.requireSignal(s.awaken)
+		suite.requireSignal(s.awaken, Immediate)
 
 		// idempotent
 		suite.True(s.onAdvance(suite.after))
-		suite.requireSignal(s.awaken)
+		suite.requireSignal(s.awaken, Immediate)
 
 		// idempotent
 		suite.False(s.onAdvance(suite.now))
-		suite.requireSignal(s.awaken)
+		suite.requireSignal(s.awaken, Immediate)
 
 	})
 
@@ -63,31 +63,31 @@ func (suite *SleeperSuite) TestOnAdvance() {
 		)
 
 		suite.Require().NotNil(s)
-		suite.requireNoSignal(s.awaken)
+		suite.requireNoSignal(s.awaken, Immediate)
 
 		// idempotent
 		suite.False(s.onAdvance(suite.now))
-		suite.requireNoSignal(s.awaken)
+		suite.requireNoSignal(s.awaken, Immediate)
 
 		// idempotent
 		suite.False(s.onAdvance(suite.now))
-		suite.requireNoSignal(s.awaken)
+		suite.requireNoSignal(s.awaken, Immediate)
 
 		// wakeup using a value after the time value
 		suite.True(s.onAdvance(suite.after))
-		suite.requireSignal(s.awaken)
+		suite.requireSignal(s.awaken, Immediate)
 
 		// idempotent
 		suite.True(s.onAdvance(suite.wakeup))
-		suite.requireSignal(s.awaken)
+		suite.requireSignal(s.awaken, Immediate)
 
 		// idempotent
 		suite.True(s.onAdvance(suite.after))
-		suite.requireSignal(s.awaken)
+		suite.requireSignal(s.awaken, Immediate)
 
 		// idempotent
 		suite.False(s.onAdvance(suite.now))
-		suite.requireSignal(s.awaken)
+		suite.requireSignal(s.awaken, Immediate)
 
 	})
 }
