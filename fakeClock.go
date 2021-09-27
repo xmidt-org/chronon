@@ -219,6 +219,7 @@ func (fc *FakeClock) NewTicker(d time.Duration) Ticker {
 		fc.listeners.add(ft)
 	}
 
+	fc.onTicker.notify(d)
 	fc.lock.Unlock()
 	return ft
 }

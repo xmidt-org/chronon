@@ -64,14 +64,14 @@ func (suite *FakeClockSuite) TestSleep() {
 			}()
 
 			// ensure the other goroutine is actually blocked
-			sleepTime := suite.requireReceive(onSleep, 100*time.Millisecond).(time.Duration)
+			sleepTime := suite.requireReceive(onSleep, WaitALittle).(time.Duration)
 			suite.requireNoSignal(done, Immediate)
 
 			fc.Add(sleepTime / 2)
 			suite.requireNoSignal(done, Immediate)
 
 			fc.Add(sleepTime / 2)
-			suite.requireSignal(done, 100*time.Millisecond)
+			suite.requireSignal(done, WaitALittle)
 		})
 
 		suite.Run("Set", func() {
@@ -127,30 +127,14 @@ func (suite *FakeClockSuite) TestNewTimer() {
 				fc.NotifyOnTimer(removed)
 				fc.StopOnTimer(removed)
 				t := fc.NewTimer(interval)
-
-				select {
-				case d := <-onTimer:
-					suite.Equal(interval, d)
-				default:
-					suite.Require().Fail("The onTimer channel should have immediately received a value")
-				}
-
-				select {
-				case <-removed:
-					suite.Require().Fail("The removed channel shouldn't have been signalled when adding a timer")
-				default:
-				}
-
-				select {
-				case v := <-t.C():
-					suite.Equal(suite.now, v)
-				default:
-					suite.Fail("The timer channel should have immediately received a value")
-				}
+				suite.requireReceiveEqual(onTimer, interval, Immediate)
+				suite.requireNoSignal(removed, Immediate)
+				suite.requireSignal(t.C(), Immediate)
 			})
 		}
 	})
 
+	const timerInterval time.Duration = 100 * time.Millisecond
 	suite.Run("Delayed", func() {
 		suite.Run("Add", func() {
 			var (
@@ -163,8 +147,8 @@ func (suite *FakeClockSuite) TestNewTimer() {
 			fc.NotifyOnTimer(onTimer)
 			fc.NotifyOnTimer(removed)
 			fc.StopOnTimer(removed)
-			t := fc.NewTimer(100 * time.Millisecond)
-			d := <-onTimer // should have a value immediately
+			t := fc.NewTimer(timerInterval)
+			suite.requireReceiveEqual(onTimer, timerInterval, Immediate)
 			suite.requireNoSignal(removed, Immediate)
 
 			go func() {
@@ -173,11 +157,11 @@ func (suite *FakeClockSuite) TestNewTimer() {
 
 			suite.requireNoSignal(result, WaitALittle)
 
-			fc.Add(d / 2)
+			fc.Add(timerInterval / 2)
 			suite.requireNoSignal(result, WaitALittle)
 
-			fc.Add(d / 2)
-			suite.requireReceiveEqual(result, suite.now.Add(d), WaitALittle)
+			fc.Add(timerInterval / 2)
+			suite.requireReceiveEqual(result, suite.now.Add(timerInterval), WaitALittle)
 		})
 
 		suite.Run("Set", func() {
@@ -191,8 +175,8 @@ func (suite *FakeClockSuite) TestNewTimer() {
 			fc.NotifyOnTimer(onTimer)
 			fc.NotifyOnTimer(removed)
 			fc.StopOnTimer(removed)
-			t := fc.NewTimer(100 * time.Millisecond)
-			d := <-onTimer // should have a value immediately
+			t := fc.NewTimer(timerInterval)
+			suite.requireReceiveEqual(onTimer, timerInterval, Immediate)
 			suite.requireNoSignal(removed, Immediate)
 
 			go func() {
@@ -200,10 +184,12 @@ func (suite *FakeClockSuite) TestNewTimer() {
 			}()
 
 			suite.requireNoSignal(result, WaitALittle)
+
 			fc.Set(suite.now.Add(-time.Second))
 			suite.requireNoSignal(result, WaitALittle)
-			fc.Set(suite.now.Add(d))
-			suite.requireReceiveEqual(result, suite.now.Add(d), WaitALittle)
+
+			fc.Set(suite.now.Add(timerInterval))
+			suite.requireReceiveEqual(result, suite.now.Add(timerInterval), WaitALittle)
 		})
 	})
 }
@@ -272,33 +258,15 @@ func (suite *FakeClockSuite) TestAfterFunc() {
 			})
 
 			suite.Nil(t.C())
-			d := <-onTimer // should have a value immediately
-
-			select {
-			case <-removed:
-				suite.Require().Fail("The removed channel shouldn't have been signalled when adding a timer")
-			default:
-			}
-
-			select {
-			case <-called:
-				suite.Require().Fail("The function should NOT have been called yet")
-			default:
-			}
+			d := suite.requireReceive(onTimer, Immediate).(time.Duration)
+			suite.requireNoSignal(removed, Immediate)
+			suite.requireNoSignal(called, Immediate)
 
 			fc.Add(d / 2)
-			select {
-			case <-called:
-				suite.Require().Fail("The function should NOT have been called yet")
-			default:
-			}
+			suite.requireNoSignal(called, Immediate)
 
 			fc.Add(d / 2)
-			select {
-			case <-called:
-			default:
-				suite.Require().Fail("The function should have been called")
-			}
+			suite.requireSignal(called, Immediate)
 		})
 
 		suite.Run("Set", func() {
@@ -317,34 +285,124 @@ func (suite *FakeClockSuite) TestAfterFunc() {
 			})
 
 			suite.Nil(t.C())
-			d := <-onTimer // should have a value immediately
-
-			select {
-			case <-removed:
-				suite.Require().Fail("The removed channel shouldn't have been signalled when adding a timer")
-			default:
-			}
-
-			select {
-			case <-called:
-				suite.Require().Fail("The function should NOT have been called yet")
-			default:
-			}
+			d := suite.requireReceive(onTimer, Immediate).(time.Duration)
+			suite.requireNoSignal(removed, Immediate)
+			suite.requireNoSignal(called, Immediate)
 
 			fc.Set(suite.now.Add(-time.Second))
-			select {
-			case <-called:
-				suite.Require().Fail("The function should NOT have been called yet")
-			default:
-			}
+			suite.requireNoSignal(called, Immediate)
 
 			fc.Set(suite.now.Add(d))
-			select {
-			case <-called:
-			default:
-				suite.Require().Fail("The function should have been called")
-			}
+			suite.requireSignal(called, Immediate)
 		})
+	})
+}
+
+func (suite *FakeClockSuite) TestNewTicker() {
+	const tickerInterval time.Duration = 100 * time.Millisecond
+
+	suite.Run("Add", func() {
+		var (
+			fc       = NewFakeClock(suite.now)
+			onTicker = make(chan time.Duration, 1)
+			removed  = make(chan time.Duration, 1)
+		)
+
+		fc.NotifyOnTicker(onTicker)
+		fc.NotifyOnTicker(removed)
+		fc.StopOnTicker(removed)
+		t := fc.NewTicker(tickerInterval)
+		suite.requireReceiveEqual(onTicker, tickerInterval, Immediate)
+		suite.requireNoSignal(removed, Immediate)
+
+		suite.requireNoSignal(t.C(), Immediate)
+		fc.Add(tickerInterval / 2)
+		suite.requireNoSignal(t.C(), Immediate)
+		fc.Add(tickerInterval / 2)
+		suite.requireSignal(t.C(), Immediate)
+
+		fc.Add(tickerInterval)
+		suite.requireSignal(t.C(), Immediate)
+	})
+
+	suite.Run("Set", func() {
+		var (
+			fc       = NewFakeClock(suite.now)
+			onTicker = make(chan time.Duration, 1)
+			removed  = make(chan time.Duration, 1)
+		)
+
+		fc.NotifyOnTicker(onTicker)
+		fc.NotifyOnTicker(removed)
+		fc.StopOnTicker(removed)
+		t := fc.NewTicker(tickerInterval)
+		suite.requireReceiveEqual(onTicker, tickerInterval, Immediate)
+		suite.requireNoSignal(removed, Immediate)
+
+		suite.requireNoSignal(t.C(), Immediate)
+
+		fc.Set(suite.now.Add(-time.Hour))
+		suite.requireNoSignal(t.C(), Immediate)
+
+		fc.Set(suite.now)
+		suite.requireNoSignal(t.C(), Immediate)
+
+		fc.Set(suite.now.Add(tickerInterval))
+		suite.requireSignal(t.C(), Immediate)
+	})
+}
+
+func (suite *FakeClockSuite) TestTick() {
+	const tickerInterval time.Duration = 100 * time.Millisecond
+
+	suite.Run("Add", func() {
+		var (
+			fc       = NewFakeClock(suite.now)
+			onTicker = make(chan time.Duration, 1)
+			removed  = make(chan time.Duration, 1)
+		)
+
+		fc.NotifyOnTicker(onTicker)
+		fc.NotifyOnTicker(removed)
+		fc.StopOnTicker(removed)
+		t := fc.Tick(tickerInterval)
+		suite.requireReceiveEqual(onTicker, tickerInterval, Immediate)
+		suite.requireNoSignal(removed, Immediate)
+
+		suite.requireNoSignal(t, Immediate)
+		fc.Add(tickerInterval / 2)
+		suite.requireNoSignal(t, Immediate)
+		fc.Add(tickerInterval / 2)
+		suite.requireSignal(t, Immediate)
+
+		fc.Add(tickerInterval)
+		suite.requireSignal(t, Immediate)
+	})
+
+	suite.Run("Set", func() {
+		var (
+			fc       = NewFakeClock(suite.now)
+			onTicker = make(chan time.Duration, 1)
+			removed  = make(chan time.Duration, 1)
+		)
+
+		fc.NotifyOnTicker(onTicker)
+		fc.NotifyOnTicker(removed)
+		fc.StopOnTicker(removed)
+		t := fc.Tick(tickerInterval)
+		suite.requireReceiveEqual(onTicker, tickerInterval, Immediate)
+		suite.requireNoSignal(removed, Immediate)
+
+		suite.requireNoSignal(t, Immediate)
+
+		fc.Set(suite.now.Add(-time.Hour))
+		suite.requireNoSignal(t, Immediate)
+
+		fc.Set(suite.now)
+		suite.requireNoSignal(t, Immediate)
+
+		fc.Set(suite.now.Add(tickerInterval))
+		suite.requireSignal(t, Immediate)
 	})
 }
 

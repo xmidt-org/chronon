@@ -20,6 +20,7 @@ type ChannelSuite struct {
 }
 
 func (suite *ChannelSuite) selectOn(ch interface{}, waitFor time.Duration) (int, reflect.Value, bool) {
+	suite.T().Helper()
 	cases := []reflect.SelectCase{
 		reflect.SelectCase{
 			Dir:  reflect.SelectRecv,
@@ -45,6 +46,7 @@ func (suite *ChannelSuite) selectOn(ch interface{}, waitFor time.Duration) (int,
 }
 
 func (suite *ChannelSuite) requireReceive(ch interface{}, waitFor time.Duration) interface{} {
+	suite.T().Helper()
 	chosen, value, recvOK := suite.selectOn(ch, waitFor)
 	suite.Require().Truef(
 		chosen == 0 && recvOK,
@@ -56,10 +58,12 @@ func (suite *ChannelSuite) requireReceive(ch interface{}, waitFor time.Duration)
 }
 
 func (suite *ChannelSuite) requireReceiveEqual(ch, expected interface{}, waitFor time.Duration) {
+	suite.T().Helper()
 	suite.Equal(expected, suite.requireReceive(ch, waitFor))
 }
 
 func (suite *ChannelSuite) requireSignal(ch interface{}, waitFor time.Duration) {
+	suite.T().Helper()
 	chosen, _, _ := suite.selectOn(ch, waitFor)
 	suite.Require().Truef(
 		chosen == 0,
@@ -69,6 +73,7 @@ func (suite *ChannelSuite) requireSignal(ch interface{}, waitFor time.Duration) 
 }
 
 func (suite *ChannelSuite) requireNoSignal(ch interface{}, waitFor time.Duration) {
+	suite.T().Helper()
 	chosen, _, _ := suite.selectOn(ch, waitFor)
 	suite.Require().Truef(
 		chosen == 1,
