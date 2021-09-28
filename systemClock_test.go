@@ -8,7 +8,7 @@ import (
 )
 
 type SystemClockSuite struct {
-	ChannelSuite
+	ChrononSuite
 }
 
 func (suite *SystemClockSuite) assertEqualOrAfter(expected, actual time.Time) {

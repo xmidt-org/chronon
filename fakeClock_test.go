@@ -8,13 +8,7 @@ import (
 )
 
 type FakeClockSuite struct {
-	ChannelSuite
-
-	now time.Time
-}
-
-func (suite *FakeClockSuite) SetupSuite() {
-	suite.now = time.Now()
+	ChrononSuite
 }
 
 func (suite *FakeClockSuite) TestNow() {
