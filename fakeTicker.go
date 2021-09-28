@@ -28,10 +28,10 @@ func newFakeTicker(fc *FakeClock, tick time.Duration, start time.Time) *fakeTick
 	}
 }
 
-// onAdvance handles dispatching any tick events to the channel based on
+// onUpdate handles dispatching any tick events to the channel based on
 // the containing FakeClock's time advancing.  This method always returns
 // false, since advancing a clock never causes a ticker to expire.
-func (ft *fakeTicker) onAdvance(now time.Time) bool {
+func (ft *fakeTicker) onUpdate(now time.Time) updateResult {
 	// dispatch as many ticks as are necessary
 	for equalOrAfter(now, ft.next) {
 		sendTime(ft.c, ft.next) // send the next instead of now, since we may send multiple
@@ -39,7 +39,7 @@ func (ft *fakeTicker) onAdvance(now time.Time) bool {
 	}
 
 	// a ticker doesn't expire on its own.  it has to be stopped.
-	return false
+	return continueUpdates
 }
 
 // C returns the time channel on which ticks are sent.  This channel is never closed
@@ -63,7 +63,7 @@ func (ft *fakeTicker) Reset(d time.Duration) {
 		func(now time.Time, ls *listeners) {
 			ft.tick = d
 			ft.next = now.Add(d)
-			ls.add(ft) // idempotent
+			ls.add(ft)
 		},
 	)
 }

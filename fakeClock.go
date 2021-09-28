@@ -28,7 +28,7 @@ type FakeClock struct {
 
 	now       time.Time
 	listeners listeners
-	onSleep   notifiers
+	onSleeper notifiers
 	onTimer   notifiers
 	onTicker  notifiers
 }
@@ -60,7 +60,7 @@ func (fc *FakeClock) Add(d time.Duration) (now time.Time) {
 	fc.lock.Lock()
 	now = fc.now.Add(d)
 	fc.now = now
-	fc.listeners.onAdvance(now)
+	fc.listeners.onUpdate(now)
 	fc.lock.Unlock()
 
 	return
@@ -71,7 +71,7 @@ func (fc *FakeClock) Add(d time.Duration) (now time.Time) {
 func (fc *FakeClock) Set(t time.Time) {
 	fc.lock.Lock()
 	fc.now = t
-	fc.listeners.onAdvance(t)
+	fc.listeners.onUpdate(t)
 	fc.lock.Unlock()
 }
 
@@ -114,9 +114,9 @@ func (fc *FakeClock) Sleep(d time.Duration) {
 	}
 
 	fc.lock.Lock()
-	sleeper := newSleeperAt(fc.now.Add(d))
-	fc.listeners.add(sleeper)
-	fc.onSleep.notify(d)
+	sleeper := newSleeperAt(fc, fc.now.Add(d))
+	fc.listeners.register(fc.now, sleeper)
+	fc.onSleeper.notify(sleeper)
 	fc.lock.Unlock()
 
 	sleeper.wait()
@@ -130,17 +130,17 @@ func (fc *FakeClock) Sleep(d time.Duration) {
 // needs to block waiting for a sleeper before modifying this FakeClock's time.
 // When used for this purpose, be sure to register a sleep channel before
 // invoking Sleep, usually in test setup code.
-func (fc *FakeClock) NotifyOnSleep(ch chan<- time.Duration) {
+func (fc *FakeClock) NotifyOnSleep(ch chan<- Sleeper) {
 	fc.lock.Lock()
-	fc.onSleep.add(ch)
+	fc.onSleeper.add(ch)
 	fc.lock.Unlock()
 }
 
 // StopOnSleep removes a channel from the list of channels that receive notifications
 // for Sleep.  If the given channel is not present, this method does nothing.
-func (fc *FakeClock) StopOnSleep(ch chan<- time.Duration) {
+func (fc *FakeClock) StopOnSleep(ch chan<- Sleeper) {
 	fc.lock.Lock()
-	fc.onSleep.remove(ch)
+	fc.onSleeper.remove(ch)
 	fc.lock.Unlock()
 }
 
@@ -151,13 +151,8 @@ func (fc *FakeClock) NewTimer(d time.Duration) Timer {
 	fc.lock.Lock()
 	ft := newFakeTimer(fc, fc.now.Add(d))
 
-	// handle nonpositive durations consistently with normal triggering
-	if !ft.onAdvance(fc.now) {
-		fc.listeners.add(ft)
-	}
-
-	// always notify, even if the timer immediately fired
-	fc.onTimer.notify(d)
+	fc.listeners.register(fc.now, ft)
+	fc.onSleeper.notify(ft)
 
 	fc.lock.Unlock()
 	return ft
@@ -176,13 +171,8 @@ func (fc *FakeClock) AfterFunc(d time.Duration, f func()) Timer {
 	fc.lock.Lock()
 	ft := newAfterFunc(fc, fc.now.Add(d), func(time.Time) { f() })
 
-	// handle nonpositive durations consistently
-	if !ft.onAdvance(fc.now) {
-		fc.listeners.add(ft)
-	}
-
-	// always notify, even if the timer immediately fired
-	fc.onTimer.notify(d)
+	fc.listeners.register(fc.now, ft)
+	fc.onTimer.notify(ft)
 
 	fc.lock.Unlock()
 	return ft
@@ -213,13 +203,8 @@ func (fc *FakeClock) NewTicker(d time.Duration) Ticker {
 	fc.lock.Lock()
 	ft := newFakeTicker(fc, d, fc.now)
 
-	// consistent logic with NewTimer, even though onAdvance
-	// always returns false (at least, right now)
-	if !ft.onAdvance(fc.now) {
-		fc.listeners.add(ft)
-	}
-
-	fc.onTicker.notify(d)
+	fc.listeners.register(fc.now, ft)
+	fc.onTicker.notify(ft)
 	fc.lock.Unlock()
 	return ft
 }
