@@ -65,6 +65,27 @@ func (suite *FakeTickerSuite) TestSet() {
 	suite.requireNoSignal(t.C(), Immediate)
 }
 
+func (suite *FakeTickerSuite) TestStopReset() {
+	t, fc := suite.newFakeTicker(TestInterval)
+
+	t.Stop()
+	fc.Add(TestInterval)
+	suite.requireNoSignal(t.C(), Immediate)
+
+	t.Reset(2 * TestInterval)
+	fc.Add(TestInterval)
+	suite.requireNoSignal(t.C(), Immediate)
+
+	fc.Add(TestInterval)
+	suite.requireSignal(t.C(), Immediate)
+
+	suite.Panics(func() {
+		t.Reset(-100 * time.Second)
+	})
+
+	suite.requireNoSignal(t.C(), Immediate)
+}
+
 func TestFakeTicker(t *testing.T) {
 	suite.Run(t, new(FakeTickerSuite))
 }
