@@ -8,16 +8,14 @@ import (
 )
 
 type SleeperSuite struct {
-	ChannelSuite
+	ChrononSuite
 
-	now    time.Time
 	wakeup time.Time
 	after  time.Time
 }
 
 func (suite *SleeperSuite) SetupSuite() {
-	// create some convenient times for testing
-	suite.now = time.Now()
+	suite.ChrononSuite.SetupSuite()
 	suite.wakeup = suite.now.Add(time.Second)
 	suite.after = suite.wakeup.Add(time.Second)
 }
