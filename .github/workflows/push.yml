@@ -98,7 +98,7 @@ jobs:
         with:
           name: coverage
       - name: SonarCloud Scan
-        uses: sonarsource/sonarcloud-github-action@master
+        uses: sonarsource/sonarcloud-github-action@main
         with:
           args: >
             -Dproject.settings=./.sonar-project.properties
