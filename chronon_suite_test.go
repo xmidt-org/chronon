@@ -72,6 +72,22 @@ func (suite *ChrononSuite) newAfterFunc(d time.Duration) (Timer, *FakeClock, <-c
 	return t, fc, called
 }
 
+// newFakeTicker creates a fake ticker and a fake clock to control it with.
+// Standard assertions are run on both objects.
+func (suite *ChrononSuite) newFakeTicker(d time.Duration) (Ticker, *FakeClock) {
+	suite.T().Helper()
+	fc := suite.newFakeClock()
+
+	t := fc.NewTicker(d)
+	suite.Require().NotNil(t)
+	suite.Require().NotNil(t.C())
+
+	// a valid ticker's channel should never be signalled when first created
+	suite.requireNoSignal(t.C(), Immediate)
+
+	return t, fc
+}
+
 func (suite *ChrononSuite) selectOn(ch interface{}, waitFor time.Duration) (int, reflect.Value, bool) {
 	suite.T().Helper()
 	cases := []reflect.SelectCase{
