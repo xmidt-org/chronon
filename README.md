@@ -1,6 +1,6 @@
 # chronon
 
-chronon does something good.
+`chronon` is a testable time package.
 
 [![Build Status](https://github.com/xmidt-org/chronon/workflows/CI/badge.svg)](https://github.com/xmidt-org/chronon/actions)
 [![codecov.io](http://codecov.io/github/xmidt-org/chronon/coverage.svg?branch=main)](http://codecov.io/github/xmidt-org/chronon?branch=main)
@@ -19,7 +19,6 @@ chronon does something good.
 ## Table of Contents
 
 - [Code of Conduct](#code-of-conduct)
-- [Details](#details)
 - [Install](#install)
 - [Contributing](#contributing)
 
@@ -28,13 +27,11 @@ chronon does something good.
 This project and everyone participating in it are governed by the [XMiDT Code Of Conduct](https://xmidt.io/docs/community/code_of_conduct/). 
 By participating, you agree to this Code.
 
-## Details
-
-Add details here.
-
 ## Install
 
-Add details here.
+```
+go get -u github.com/xmidt-org/chronon
+```
 
 ## Contributing
 
