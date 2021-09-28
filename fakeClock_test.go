@@ -108,7 +108,7 @@ func (suite *FakeClockSuite) TestSleep() {
 }
 
 func (suite *FakeClockSuite) TestNewTimer() {
-	for _, interval := range []time.Duration{-timerInterval, 0, timerInterval} {
+	for _, interval := range []time.Duration{-TestInterval, 0, TestInterval} {
 		suite.Run(interval.String(), func() {
 			var (
 				fc      = suite.newFakeClock()
@@ -139,14 +139,14 @@ func (suite *FakeClockSuite) TestAfter() {
 	fc.NotifyOnTimer(removed)
 	fc.StopOnTimer(removed)
 
-	ch := fc.After(timerInterval)
+	ch := fc.After(TestInterval)
 	suite.Require().NotNil(ch)
-	suite.requireReceiveEqual(onTimer, timerInterval, Immediate)
+	suite.requireReceiveEqual(onTimer, TestInterval, Immediate)
 	suite.requireNoSignal(removed, Immediate)
 }
 
 func (suite *FakeClockSuite) TestAfterFunc() {
-	for _, interval := range []time.Duration{-timerInterval, 0, timerInterval} {
+	for _, interval := range []time.Duration{-TestInterval, 0, TestInterval} {
 		suite.Run(interval.String(), func() {
 			var (
 				fc      = suite.newFakeClock()
