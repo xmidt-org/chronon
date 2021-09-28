@@ -76,8 +76,7 @@ func ExampleFakeClock_NewTimer() {
 }
 
 func ExampleFakeClock_NewTicker() {
-	start := time.Now()
-	fc := NewFakeClock(start)
+	fc := NewFakeClock(time.Now())
 
 	// to coordinate with another goroutine, use NotifyOnTicker
 	onTicker := make(chan time.Duration)
