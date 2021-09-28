@@ -19,6 +19,8 @@ const (
 	TestInterval time.Duration = 100 * time.Millisecond
 )
 
+// ChrononSuite is an embeddable test suite that extends stretchr's suite
+// with some useful assertions and utilities.
 type ChrononSuite struct {
 	suite.Suite
 
