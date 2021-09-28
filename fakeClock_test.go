@@ -108,188 +108,63 @@ func (suite *FakeClockSuite) TestSleep() {
 }
 
 func (suite *FakeClockSuite) TestNewTimer() {
-	suite.Run("Immediate", func() {
-		for _, interval := range []time.Duration{-100 * time.Millisecond, 0} {
-			suite.Run(interval.String(), func() {
-				var (
-					fc      = NewFakeClock(suite.now)
-					onTimer = make(chan time.Duration, 1)
-					removed = make(chan time.Duration, 1)
-				)
-
-				fc.NotifyOnTimer(onTimer)
-				fc.NotifyOnTimer(removed)
-				fc.StopOnTimer(removed)
-				t := fc.NewTimer(interval)
-				suite.requireReceiveEqual(onTimer, interval, Immediate)
-				suite.requireNoSignal(removed, Immediate)
-				suite.requireSignal(t.C(), Immediate)
-			})
-		}
-	})
-
-	const timerInterval time.Duration = 100 * time.Millisecond
-	suite.Run("Delayed", func() {
-		suite.Run("Add", func() {
+	for _, interval := range []time.Duration{-timerInterval, 0, timerInterval} {
+		suite.Run(interval.String(), func() {
 			var (
-				fc      = NewFakeClock(suite.now)
+				fc      = suite.newFakeClock()
 				onTimer = make(chan time.Duration, 1)
 				removed = make(chan time.Duration, 1)
-				result  = make(chan time.Time)
 			)
 
 			fc.NotifyOnTimer(onTimer)
 			fc.NotifyOnTimer(removed)
 			fc.StopOnTimer(removed)
-			t := fc.NewTimer(timerInterval)
-			suite.requireReceiveEqual(onTimer, timerInterval, Immediate)
+
+			t := fc.NewTimer(interval)
+			suite.Require().NotNil(t)
+			suite.requireReceiveEqual(onTimer, interval, Immediate)
 			suite.requireNoSignal(removed, Immediate)
-
-			go func() {
-				result <- (<-t.C())
-			}()
-
-			suite.requireNoSignal(result, WaitALittle)
-
-			fc.Add(timerInterval / 2)
-			suite.requireNoSignal(result, WaitALittle)
-
-			fc.Add(timerInterval / 2)
-			suite.requireReceiveEqual(result, suite.now.Add(timerInterval), WaitALittle)
 		})
-
-		suite.Run("Set", func() {
-			var (
-				fc      = NewFakeClock(suite.now)
-				onTimer = make(chan time.Duration, 1)
-				removed = make(chan time.Duration, 1)
-				result  = make(chan time.Time)
-			)
-
-			fc.NotifyOnTimer(onTimer)
-			fc.NotifyOnTimer(removed)
-			fc.StopOnTimer(removed)
-			t := fc.NewTimer(timerInterval)
-			suite.requireReceiveEqual(onTimer, timerInterval, Immediate)
-			suite.requireNoSignal(removed, Immediate)
-
-			go func() {
-				result <- (<-t.C())
-			}()
-
-			suite.requireNoSignal(result, WaitALittle)
-
-			fc.Set(suite.now.Add(-time.Second))
-			suite.requireNoSignal(result, WaitALittle)
-
-			fc.Set(suite.now.Add(timerInterval))
-			suite.requireReceiveEqual(result, suite.now.Add(timerInterval), WaitALittle)
-		})
-	})
+	}
 }
 
 func (suite *FakeClockSuite) TestAfter() {
-	// we've already put NewTimer through it's paces, so this is
-	// just testing the happy path
-
 	var (
-		fc     = NewFakeClock(suite.now)
-		ch     = fc.After(100 * time.Millisecond)
-		result = make(chan time.Time)
+		fc      = suite.newFakeClock()
+		onTimer = make(chan time.Duration, 1)
+		removed = make(chan time.Duration, 1)
 	)
 
-	go func() {
-		result <- (<-ch)
-	}()
+	fc.NotifyOnTimer(onTimer)
+	fc.NotifyOnTimer(removed)
+	fc.StopOnTimer(removed)
 
-	suite.requireNoSignal(result, WaitALittle)
-	fc.Add(50 * time.Millisecond)
-	suite.requireNoSignal(result, WaitALittle)
-	fc.Add(50 * time.Millisecond)
-	suite.requireReceiveEqual(result, suite.now.Add(100*time.Millisecond), WaitALittle)
+	ch := fc.After(timerInterval)
+	suite.Require().NotNil(ch)
+	suite.requireReceiveEqual(onTimer, timerInterval, Immediate)
+	suite.requireNoSignal(removed, Immediate)
 }
 
 func (suite *FakeClockSuite) TestAfterFunc() {
-	suite.Run("Immediate", func() {
-		for _, interval := range []time.Duration{-100 * time.Millisecond, 0} {
-			suite.Run(interval.String(), func() {
-				var (
-					fc      = NewFakeClock(suite.now)
-					onTimer = make(chan time.Duration, 1)
-					removed = make(chan time.Duration, 1)
-					called  = make(chan struct{})
-				)
-
-				fc.NotifyOnTimer(onTimer)
-				fc.NotifyOnTimer(removed)
-				fc.StopOnTimer(removed)
-				t := fc.AfterFunc(interval, func() {
-					close(called)
-				})
-
-				suite.Nil(t.C())
-				suite.requireReceiveEqual(onTimer, interval, Immediate)
-				suite.requireNoSignal(removed, Immediate)
-				suite.requireSignal(called, Immediate)
-			})
-		}
-	})
-
-	suite.Run("Delayed", func() {
-		suite.Run("Add", func() {
+	for _, interval := range []time.Duration{-timerInterval, 0, timerInterval} {
+		suite.Run(interval.String(), func() {
 			var (
-				fc      = NewFakeClock(suite.now)
+				fc      = suite.newFakeClock()
 				onTimer = make(chan time.Duration, 1)
 				removed = make(chan time.Duration, 1)
-				called  = make(chan struct{})
 			)
 
 			fc.NotifyOnTimer(onTimer)
 			fc.NotifyOnTimer(removed)
 			fc.StopOnTimer(removed)
-			t := fc.AfterFunc(100*time.Millisecond, func() {
-				close(called)
-			})
 
-			suite.Nil(t.C())
-			d := suite.requireReceive(onTimer, Immediate).(time.Duration)
+			t := fc.AfterFunc(interval, func() {})
+			suite.Require().NotNil(t)
+			suite.Require().Nil(t.C())
+			suite.requireReceiveEqual(onTimer, interval, Immediate)
 			suite.requireNoSignal(removed, Immediate)
-			suite.requireNoSignal(called, Immediate)
-
-			fc.Add(d / 2)
-			suite.requireNoSignal(called, Immediate)
-
-			fc.Add(d / 2)
-			suite.requireSignal(called, Immediate)
 		})
-
-		suite.Run("Set", func() {
-			var (
-				fc      = NewFakeClock(suite.now)
-				onTimer = make(chan time.Duration, 1)
-				removed = make(chan time.Duration, 1)
-				called  = make(chan struct{})
-			)
-
-			fc.NotifyOnTimer(onTimer)
-			fc.NotifyOnTimer(removed)
-			fc.StopOnTimer(removed)
-			t := fc.AfterFunc(100*time.Millisecond, func() {
-				close(called)
-			})
-
-			suite.Nil(t.C())
-			d := suite.requireReceive(onTimer, Immediate).(time.Duration)
-			suite.requireNoSignal(removed, Immediate)
-			suite.requireNoSignal(called, Immediate)
-
-			fc.Set(suite.now.Add(-time.Second))
-			suite.requireNoSignal(called, Immediate)
-
-			fc.Set(suite.now.Add(d))
-			suite.requireSignal(called, Immediate)
-		})
-	})
+	}
 }
 
 func (suite *FakeClockSuite) TestNewTicker() {
