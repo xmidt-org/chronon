@@ -12,15 +12,16 @@
 [![GitHub release](https://img.shields.io/github/release/xmidt-org/chronon.svg)](CHANGELOG.md)
 [![PkgGoDev](https://pkg.go.dev/badge/github.com/xmidt-org/chronon)](https://pkg.go.dev/github.com/xmidt-org/chronon)
 
-## Summary
-
-`chronon` aims to make concurrent, time-related code in `golang` easier to test.  The `Clock` abstraction is intended as a drop-in replacement for the `time` package.
-
 ## Table of Contents
 
+- [Overview](#overview)
 - [Code of Conduct](#code-of-conduct)
 - [Install](#install)
 - [Contributing](#contributing)
+
+## Overview
+
+`chronon` aims to make concurrent, time-related `golang` code easier to test.  In particular, `chronon` avoids having package-level state or a "test mode" that unit tests use to drive timers, tickers, etc.
 
 ## Code of Conduct
 
