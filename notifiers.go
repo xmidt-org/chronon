@@ -1,48 +1,34 @@
 package chronon
 
-import "time"
+import (
+	"reflect"
+)
 
-// notifiers holds a slice of channels that will receive durations,
-// such as from sleepers.
-type notifiers []chan<- time.Duration
+// notifiers is a set of channels.
+type notifiers map[reflect.Value]bool
 
-// deleteAt removes the channel at the given index.  This method does no bounds checking.
-func (n *notifiers) deleteAt(i int) {
-	last := len(*n) - 1
-	(*n)[i], (*n)[last] = (*n)[last], nil
-	*n = (*n)[:last]
-}
-
-// notify dispatches the given duration to each channel in this slice.
-func (n notifiers) notify(d time.Duration) {
-	for _, ch := range n {
-		ch <- d
+// notify sends e to all channels in this set.
+func (n notifiers) notify(e interface{}) {
+	ev := reflect.ValueOf(e)
+	for ch := range n {
+		ch.Send(ev)
 	}
 }
 
-// add appends the given channel to this slice.  This method
-// is idempotent: if v is already in this slice, this method
-// does nothing.
-func (n *notifiers) add(v chan<- time.Duration) {
-	for _, ch := range *n {
-		if ch == v {
-			return
-		}
+// add inserts a new channel into this map.
+func (n *notifiers) add(ch interface{}) {
+	if *n == nil {
+		*n = make(notifiers, 1)
 	}
 
-	*n = append(*n, v)
+	(*n)[reflect.ValueOf(ch)] = true
 }
 
-// remove deletes the channel from this slice.  This method
-// is idempotent: if v is not in this slice, this method
-// does nothing.
-func (n *notifiers) remove(v chan<- time.Duration) {
-	var i int
-	for i < len(*n) {
-		if (*n)[i] == v {
-			n.deleteAt(i)
-		} else {
-			i++
-		}
+// remove deletes a channel from this map.
+func (n *notifiers) remove(ch interface{}) {
+	if *n == nil {
+		return
 	}
+
+	delete(*n, reflect.ValueOf(ch))
 }

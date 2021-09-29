@@ -10,7 +10,7 @@ func ExampleFakeClock_Sleep() {
 	fc := NewFakeClock(time.Now())
 
 	// to coordinate with another goroutine, use NotifyOnSleep
-	onSleep := make(chan time.Duration)
+	onSleep := make(chan Sleeper)
 	fc.NotifyOnSleep(onSleep)
 
 	// spawn our code under test in a separate goroutine
@@ -22,11 +22,11 @@ func ExampleFakeClock_Sleep() {
 	}()
 
 	// ensure that production code has reached the point where it's sleeping
-	d := <-onSleep
-	fmt.Println("code under test is now sleeping for", d)
+	s := <-onSleep
+	fmt.Println("code under test is now sleeping for", fc.Until(s.When()))
 
 	// wakeup our production code
-	fc.Add(d)
+	fc.Add(5 * time.Second)
 
 	// ensure that the goroutine finishes before we exit
 	<-done
@@ -37,11 +37,10 @@ func ExampleFakeClock_Sleep() {
 }
 
 func ExampleFakeClock_NewTimer() {
-	start := time.Now()
-	fc := NewFakeClock(start)
+	fc := NewFakeClock(time.Now())
 
 	// to coordinate with another goroutine, use NotifyOnTimer
-	onTimer := make(chan time.Duration)
+	onTimer := make(chan FakeTimer)
 	fc.NotifyOnTimer(onTimer)
 
 	// spawn our code under test in a separate goroutine
@@ -55,17 +54,17 @@ func ExampleFakeClock_NewTimer() {
 
 	// ensure that production code has reached the point where it's
 	// waiting on a timer
-	d := <-onTimer
-	fmt.Println("code under test is now waiting for", d)
+	ft := <-onTimer
+	fmt.Println("code under test is now waiting for", fc.Until(ft.When()))
 
 	// the clock can be advanced less than the timer interval with no effect
-	fc.Add(d / 3)
+	fc.Add(time.Millisecond)
 
 	// the clock can also be turned backward, again with no effect
 	fc.Add(-2 * time.Hour)
 
 	// force our code under test to stop waiting
-	fc.Set(start.Add(d))
+	ft.Fire()
 
 	// ensure that the goroutine finishes before we exit
 	<-done
@@ -79,7 +78,7 @@ func ExampleFakeClock_NewTicker() {
 	fc := NewFakeClock(time.Now())
 
 	// to coordinate with another goroutine, use NotifyOnTicker
-	onTicker := make(chan time.Duration)
+	onTicker := make(chan FakeTicker)
 	fc.NotifyOnTicker(onTicker)
 
 	// create a context to control termination of our code under test
@@ -106,19 +105,19 @@ func ExampleFakeClock_NewTicker() {
 
 	// ensure that production code has reached the point where it's
 	// waiting on a ticker
-	d := <-onTicker
-	fmt.Println("code under test is now waiting for ticks on", d)
+	ft := <-onTicker
+	fmt.Println("code under test is now waiting for ticks on", fc.Until(ft.When()))
 
-	// force a tick by advancing the clock by the tick interval
-	fc.Add(d)
+	// force a tick by advancing the clock
+	fc.Set(ft.When())
 	<-receivedTick
 
-	// can also force a tick by setting absolute time in the future
-	fc.Set(fc.Now().Add(d))
+	// can also force a tick directly
+	ft.Fire()
 	<-receivedTick
 
 	// moving the clock backwards doesn't result in ticks
-	fc.Add(-d)
+	fc.Add(-time.Hour)
 
 	// all done testing
 	cancel()

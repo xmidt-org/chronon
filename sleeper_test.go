@@ -20,106 +20,55 @@ func (suite *SleeperSuite) SetupSuite() {
 	suite.after = suite.wakeup.Add(time.Second)
 }
 
-func (suite *SleeperSuite) TestOnAdvance() {
-	suite.Run("Exact", func() {
-		s := newSleeperAt(
-			suite.wakeup,
-		)
+func (suite *SleeperSuite) Immediate() {
+	for _, interval := range []time.Duration{-TestInterval, 0} {
+		suite.Run(interval.String(), func() {
+			s, fc, done := suite.newSleeper(interval)
+			suite.requireSignal(done, Immediate)
+			suite.Equal(-interval, fc.Since(s.When()))
 
-		suite.Require().NotNil(s)
-		suite.requireNoSignal(s.awaken, Immediate)
-
-		// idempotent
-		suite.False(s.onAdvance(suite.now))
-		suite.requireNoSignal(s.awaken, Immediate)
-
-		// idempotent
-		suite.False(s.onAdvance(suite.now))
-		suite.requireNoSignal(s.awaken, Immediate)
-
-		// wakeup using the exact time value
-		suite.True(s.onAdvance(suite.wakeup))
-		suite.requireSignal(s.awaken, Immediate)
-
-		// idempotent
-		suite.True(s.onAdvance(suite.wakeup))
-		suite.requireSignal(s.awaken, Immediate)
-
-		// idempotent
-		suite.True(s.onAdvance(suite.after))
-		suite.requireSignal(s.awaken, Immediate)
-
-		// idempotent
-		suite.False(s.onAdvance(suite.now))
-		suite.requireSignal(s.awaken, Immediate)
-
-	})
-
-	suite.Run("After", func() {
-		s := newSleeperAt(
-			suite.wakeup,
-		)
-
-		suite.Require().NotNil(s)
-		suite.requireNoSignal(s.awaken, Immediate)
-
-		// idempotent
-		suite.False(s.onAdvance(suite.now))
-		suite.requireNoSignal(s.awaken, Immediate)
-
-		// idempotent
-		suite.False(s.onAdvance(suite.now))
-		suite.requireNoSignal(s.awaken, Immediate)
-
-		// wakeup using a value after the time value
-		suite.True(s.onAdvance(suite.after))
-		suite.requireSignal(s.awaken, Immediate)
-
-		// idempotent
-		suite.True(s.onAdvance(suite.wakeup))
-		suite.requireSignal(s.awaken, Immediate)
-
-		// idempotent
-		suite.True(s.onAdvance(suite.after))
-		suite.requireSignal(s.awaken, Immediate)
-
-		// idempotent
-		suite.False(s.onAdvance(suite.now))
-		suite.requireSignal(s.awaken, Immediate)
-
-	})
+			suite.False(s.Wakeup())
+		})
+	}
 }
 
-func (suite *SleeperSuite) TestWait() {
-	s := newSleeperAt(
-		suite.wakeup,
-	)
+func (suite *SleeperSuite) TestWakeup() {
+	s, fc, done := suite.newSleeper(TestInterval)
+	suite.requireNoSignal(done, Immediate)
+	suite.Equal(TestInterval, fc.Until(s.When()))
 
-	suite.Require().NotNil(s)
+	suite.True(s.Wakeup())
+	suite.requireSignal(done, WaitALittle)
 
-	done := make(chan struct{})
-	go func() {
-		defer close(done)
-		s.wait()
-	}()
+	suite.False(s.Wakeup())
+}
 
-	suite.False(s.onAdvance(suite.now))
+func (suite *SleeperSuite) TestAdd() {
+	s, fc, done := suite.newSleeper(TestInterval)
+	suite.requireNoSignal(done, Immediate)
+	suite.Equal(TestInterval, fc.Until(s.When()))
 
-	select {
-	case <-done:
-		suite.Require().Fail("The waiting goroutine should not have exited")
-	default:
-		// passing
-	}
+	fc.Add(TestInterval / 2)
+	suite.requireNoSignal(done, WaitALittle)
 
-	suite.True(s.onAdvance(suite.wakeup))
+	fc.Add(TestInterval / 2)
+	suite.requireSignal(done, WaitALittle)
 
-	select {
-	case <-done:
-		// passing
-	case <-time.After(100 * time.Millisecond):
-		suite.Require().Fail("The waiting goroutine should have exited")
-	}
+	suite.False(s.Wakeup())
+}
+
+func (suite *SleeperSuite) TestSet() {
+	s, fc, done := suite.newSleeper(TestInterval)
+	suite.requireNoSignal(done, Immediate)
+	suite.Equal(TestInterval, fc.Until(s.When()))
+
+	fc.Set(s.When().Add(-time.Hour))
+	suite.requireNoSignal(done, WaitALittle)
+
+	fc.Set(s.When())
+	suite.requireSignal(done, WaitALittle)
+
+	suite.False(s.Wakeup())
 }
 
 func TestSleeper(t *testing.T) {

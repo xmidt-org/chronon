@@ -5,37 +5,21 @@ import (
 	"time"
 )
 
-// Adder represents a source of time values that can be modified
-// by adding a duration.  *FakeClock implements this interface.
-type Adder interface {
-	// Add adjusts the current time by the given delta.  The delta
-	// can be negative or 0.  This method returns the new value
-	// of the current time.
-	Add(time.Duration) time.Time
-}
-
-// Setter represents a source of time values that can be updated
-// using absolute time.  *FakeClock implements this interface.
-type Setter interface {
-	// Set adjusts the current time to the given value.
-	Set(time.Time)
-}
-
 // FakeClock is a Clock implementation that allows control over how
-// the clock advances.
+// the clock is updated.  The Add and Set methods control a FakeClock's
+// notion of the current time in addition to affecting the various objects
+// created through this clock, e.g. Timer.
 type FakeClock struct {
 	lock sync.RWMutex
 
 	now       time.Time
 	listeners listeners
-	onSleep   notifiers
+	onSleeper notifiers
 	onTimer   notifiers
 	onTicker  notifiers
 }
 
 var _ Clock = (*FakeClock)(nil)
-var _ Adder = (*FakeClock)(nil)
-var _ Setter = (*FakeClock)(nil)
 
 // NewFakeClock creates a FakeClock that uses the given time as the
 // initial current time.
@@ -53,25 +37,41 @@ func (fc *FakeClock) doWith(f func(time.Time, *listeners)) {
 	f(fc.now, &fc.listeners)
 }
 
-// Add satisfies the Adder interface.  Updating this fake clock's
-// time through this method is atomic with respect to all the other
-// methods.
+// Add updates this fake clock's current time.  The duration can be nonpositive,
+// in which case the clock moves backwards or is unaffected.
+//
+// Anytime a FakeClock's current time changes via this method or Set, any objects
+// created through this clock are updated as appropriate.
 func (fc *FakeClock) Add(d time.Duration) (now time.Time) {
 	fc.lock.Lock()
 	now = fc.now.Add(d)
 	fc.now = now
-	fc.listeners.onAdvance(now)
+	fc.listeners.onUpdate(now)
 	fc.lock.Unlock()
 
 	return
 }
 
-// Set is similar to Advance, except that it sets an absolute time instead
+// Set is similar to Add, except that it sets an absolute time instead
 // of moving this fake clock's time by a certain delta.
+//
+// A common use case is to force the firing of an object by passing its When value:
+//
+//   fc := NewFakeClock(time.Now())
+//   onTimer := make(chan FakeTimer)
+//   fc.NotifyOnTimer(onTimer)
+//
+//   // ... spawn goroutines that run production code
+//
+//   // this blocks until production code obtains a timer
+//   t := <-onTimer
+//
+//   // force the timer to fire by updating the clock
+//   fc.Set(t.When())
 func (fc *FakeClock) Set(t time.Time) {
 	fc.lock.Lock()
 	fc.now = t
-	fc.listeners.onAdvance(t)
+	fc.listeners.onUpdate(t)
 	fc.lock.Unlock()
 }
 
@@ -103,20 +103,22 @@ func (fc *FakeClock) Until(t time.Time) (d time.Duration) {
 
 // Sleep blocks until this clock is advanced sufficiently so that
 // the given duration elapses.  If d is nonpositive, this function
-// immediately returns exactly as with time.Sleep.
+// immediately returns exactly as with time.Sleep.  However, in all
+// cases a Sleeper is dispatched to any channels registered with NotifyOnSleep.
 //
 // If d is positive, then any channel registered with NotifyOnSleep
 // will receive d prior to blocking.
 func (fc *FakeClock) Sleep(d time.Duration) {
-	if d <= 0 {
-		// consistent with time.Sleep
-		return
-	}
-
 	fc.lock.Lock()
-	sleeper := newSleeperAt(fc.now.Add(d))
-	fc.listeners.add(sleeper)
-	fc.onSleep.notify(d)
+	sleeper := newSleeperAt(fc, fc.now.Add(d))
+
+	// if the duration was nonpositive, the sleeper will immediately
+	// close its channel and won't be added as a listener.  This makes
+	// sure that there is still a Sleeper dispatched to any waiting
+	// channels while preserving the behavior of time.Sleep.
+	fc.listeners.register(fc.now, sleeper)
+
+	fc.onSleeper.notify(sleeper)
 	fc.lock.Unlock()
 
 	sleeper.wait()
@@ -130,34 +132,31 @@ func (fc *FakeClock) Sleep(d time.Duration) {
 // needs to block waiting for a sleeper before modifying this FakeClock's time.
 // When used for this purpose, be sure to register a sleep channel before
 // invoking Sleep, usually in test setup code.
-func (fc *FakeClock) NotifyOnSleep(ch chan<- time.Duration) {
+func (fc *FakeClock) NotifyOnSleep(ch chan<- Sleeper) {
 	fc.lock.Lock()
-	fc.onSleep.add(ch)
+	fc.onSleeper.add(ch)
 	fc.lock.Unlock()
 }
 
 // StopOnSleep removes a channel from the list of channels that receive notifications
 // for Sleep.  If the given channel is not present, this method does nothing.
-func (fc *FakeClock) StopOnSleep(ch chan<- time.Duration) {
+func (fc *FakeClock) StopOnSleep(ch chan<- Sleeper) {
 	fc.lock.Lock()
-	fc.onSleep.remove(ch)
+	fc.onSleeper.remove(ch)
 	fc.lock.Unlock()
 }
 
 // NewTimer creates a Timer that fires when this FakeClock has been advanced
 // by at least the given duration.  The returned timer can be stopped or reset in
 // the usual fashion, which will affect what happens when the FakeClock is advanced.
+//
+// The Timer returned by this method can always be cast to a FakeTimer.
 func (fc *FakeClock) NewTimer(d time.Duration) Timer {
 	fc.lock.Lock()
 	ft := newFakeTimer(fc, fc.now.Add(d))
 
-	// handle nonpositive durations consistently with normal triggering
-	if !ft.onAdvance(fc.now) {
-		fc.listeners.add(ft)
-	}
-
-	// always notify, even if the timer immediately fired
-	fc.onTimer.notify(d)
+	fc.listeners.register(fc.now, ft)
+	fc.onTimer.notify(ft)
 
 	fc.lock.Unlock()
 	return ft
@@ -172,17 +171,14 @@ func (fc *FakeClock) After(d time.Duration) <-chan time.Time {
 // by at least the given duration.  The returned Timer can be used to cancel the
 // execution, as with time.AfterFunc.  The returned Timer from this method is
 // always a *FakeTimer, and its C() method always returns nil.
+//
+// The Timer returned by this method can always be cast to a FakeTimer.
 func (fc *FakeClock) AfterFunc(d time.Duration, f func()) Timer {
 	fc.lock.Lock()
 	ft := newAfterFunc(fc, fc.now.Add(d), func(time.Time) { f() })
 
-	// handle nonpositive durations consistently
-	if !ft.onAdvance(fc.now) {
-		fc.listeners.add(ft)
-	}
-
-	// always notify, even if the timer immediately fired
-	fc.onTimer.notify(d)
+	fc.listeners.register(fc.now, ft)
+	fc.onTimer.notify(ft)
 
 	fc.lock.Unlock()
 	return ft
@@ -192,7 +188,7 @@ func (fc *FakeClock) AfterFunc(d time.Duration, f func()) Timer {
 // through this fake clock.  This includes implicit timers, such as with After and AfterFunc.
 //
 // Test code that uses this method can be notified when code under test creates timers.
-func (fc *FakeClock) NotifyOnTimer(ch chan<- time.Duration) {
+func (fc *FakeClock) NotifyOnTimer(ch chan<- FakeTimer) {
 	fc.lock.Lock()
 	fc.onTimer.add(ch)
 	fc.lock.Unlock()
@@ -200,7 +196,7 @@ func (fc *FakeClock) NotifyOnTimer(ch chan<- time.Duration) {
 
 // StopOnTimer removes a channel from the list of channels that receive notifications
 // for timers.  If the given channel is not present, this method does nothing.
-func (fc *FakeClock) StopOnTimer(ch chan<- time.Duration) {
+func (fc *FakeClock) StopOnTimer(ch chan<- FakeTimer) {
 	fc.lock.Lock()
 	fc.onTimer.remove(ch)
 	fc.lock.Unlock()
@@ -209,17 +205,14 @@ func (fc *FakeClock) StopOnTimer(ch chan<- time.Duration) {
 // NewTicker creates a Ticker that fires when this FakeClock is advanced by
 // increments of the given duration.  The returned ticker can be stopped or
 // reset in the usual fashion.
+//
+// The Ticker returned from this method can always be cast to a FakeTicker.
 func (fc *FakeClock) NewTicker(d time.Duration) Ticker {
 	fc.lock.Lock()
 	ft := newFakeTicker(fc, d, fc.now)
 
-	// consistent logic with NewTimer, even though onAdvance
-	// always returns false (at least, right now)
-	if !ft.onAdvance(fc.now) {
-		fc.listeners.add(ft)
-	}
-
-	fc.onTicker.notify(d)
+	fc.listeners.register(fc.now, ft)
+	fc.onTicker.notify(ft)
 	fc.lock.Unlock()
 	return ft
 }
@@ -233,7 +226,7 @@ func (fc *FakeClock) Tick(d time.Duration) <-chan time.Time {
 // through this fake clock.  This includes implicit tickers, such as Tick.
 //
 // Test code that uses this method can be notified when code under test creates tickers.
-func (fc *FakeClock) NotifyOnTicker(ch chan<- time.Duration) {
+func (fc *FakeClock) NotifyOnTicker(ch chan<- FakeTicker) {
 	fc.lock.Lock()
 	fc.onTicker.add(ch)
 	fc.lock.Unlock()
@@ -241,7 +234,7 @@ func (fc *FakeClock) NotifyOnTicker(ch chan<- time.Duration) {
 
 // StopOnTicker removes a channel from the list of channels that receive notifications
 // for timers.  If the given channel is not present, this method does nothing.
-func (fc *FakeClock) StopOnTicker(ch chan<- time.Duration) {
+func (fc *FakeClock) StopOnTicker(ch chan<- FakeTicker) {
 	fc.lock.Lock()
 	fc.onTicker.remove(ch)
 	fc.lock.Unlock()

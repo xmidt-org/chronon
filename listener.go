@@ -1,71 +1,75 @@
 package chronon
 
-import "time"
+import (
+	"time"
+)
 
-// listener represents anything that can respond to a clock being advanced
+type updateResult int
+
+const (
+	continueUpdates updateResult = iota
+	stopUpdates
+)
+
+// listener represents anything that can respond to a clock's time being updated
 type listener interface {
-	// onAdvance allows this instance to respond to a clock's current time
-	// being updated.  If this instance wants to continue being advanced, this
-	// method should return true.  If this method returns false, this instance
-	// should expect additional updates.
+	// onUpdate allows this instance to respond to a clock's current time
+	// being updated.  The return value from this method indicates whether
+	// this listener will continue receiving updates.
 	//
 	// FakeClock always executes listeners under its lock, so that clock time
 	// cannot change during callback execution.  Implementations of this method
 	// must not attempt to reacquire a FakeClock's lock, as that would result
 	// in a deadlock.
-	onAdvance(time.Time) bool
+	onUpdate(time.Time) updateResult
 }
 
-// listeners is a mutable list of objects which can respond to a clock's time change.
-type listeners []listener
+// listeners is a set of listener instances that react to a containing
+// fake clock's time updates.
+type listeners map[listener]bool
 
-// deleteAt removes the listener at the given index.  This method does no bounds checking.
-func (ls *listeners) deleteAt(i int) {
-	last := len(*ls) - 1
-	(*ls)[i], (*ls)[last] = (*ls)[last], nil
-	*ls = (*ls)[:last]
-}
-
-// onAdvance dispatches an advance event to each listener and removes the
-// listeners whose onAdvance method returns true.
-func (ls *listeners) onAdvance(t time.Time) {
-	var i int
-	for i < len(*ls) {
-		if (*ls)[i].onAdvance(t) {
-			// this callback is finished
-			ls.deleteAt(i)
-		} else {
-			i++
+// onUpdate dispatches an advance event to each listener and removes the
+// listeners whose onUpdate method returns stopUpdates.
+func (ls *listeners) onUpdate(t time.Time) {
+	for l := range *ls {
+		if l.onUpdate(t) == stopUpdates {
+			delete(*ls, l)
 		}
 	}
 }
 
-// add appends the given listener.  This method is idempotent:  if
-// v is already a listener, it will not be added.
+// active tests if the given listener is active, i.e. present in this
+// set of listeners.
+func (ls listeners) active(v listener) bool {
+	return ls[v]
+}
+
+// register performs initialization for the given listener by invoking
+// it's onAdvance method for the first time.  If the listener returns continueUpdates,
+// it will be added to this listeners so that it receives future updates.
+func (ls *listeners) register(t time.Time, v listener) {
+	if *ls == nil {
+		*ls = make(listeners)
+	}
+
+	if v.onUpdate(t) == continueUpdates {
+		(*ls)[v] = true
+	}
+}
+
+// add inserts the given listener but performs no other initialization.  This method
+// is appropriate for listeners that need to add themselves again, such as after a Reset.
 func (ls *listeners) add(v listener) {
-	// scan for v first.  we're optimized around fast traversal of a
-	// small number of listeners, so a simple linear search will suffice.
-	for _, l := range *ls {
-		if v == l {
-			return
-		}
+	if *ls == nil {
+		*ls = make(listeners)
 	}
 
-	*ls = append(*ls, v)
+	(*ls)[v] = true
 }
 
-// remove deletes the given listener.  This method is idempotent:
-// if v is not present, this method does nothing.  This method also
-// handles the edge case where v is present more than once in the slice,
-// though in general that should never happen since add() is also
-// idempotent.
+// remove deletes the given listener.
 func (ls *listeners) remove(v listener) {
-	var i int
-	for i < len(*ls) {
-		if (*ls)[i] == v {
-			ls.deleteAt(i)
-		} else {
-			i++
-		}
+	if *ls != nil {
+		delete(*ls, v)
 	}
 }

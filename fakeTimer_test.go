@@ -19,7 +19,7 @@ func (suite *FakeTimerSuite) TestNewTimer() {
 				suite.False(t.Stop())
 
 				ft := t.(*fakeTimer)
-				suite.True(ft.onAdvance(suite.now))
+				suite.Equal(stopUpdates, ft.onUpdate(suite.now))
 			})
 		}
 	})
@@ -35,9 +35,6 @@ func (suite *FakeTimerSuite) TestNewTimer() {
 
 		fc.Add(TestInterval)
 		suite.requireSignal(t.C(), Immediate)
-
-		ft := t.(*fakeTimer)
-		suite.True(ft.onAdvance(suite.now))
 	})
 
 	suite.Run("Set", func() {
@@ -51,9 +48,6 @@ func (suite *FakeTimerSuite) TestNewTimer() {
 
 		fc.Set(suite.now.Add(TestInterval))
 		suite.requireSignal(t.C(), Immediate)
-
-		ft := t.(*fakeTimer)
-		suite.True(ft.onAdvance(suite.now))
 	})
 
 	suite.Run("StopReset", func() {
@@ -92,13 +86,29 @@ func (suite *FakeTimerSuite) TestAfterFunc() {
 				suite.requireSignal(called, Immediate)
 
 				ft := t.(*fakeTimer)
-				suite.True(ft.onAdvance(suite.now))
+				suite.Equal(stopUpdates, ft.onUpdate(suite.now))
 			})
 		}
 	})
 
+	suite.Run("Fire", func() {
+		t, fc, called := suite.newAfterFunc(TestInterval)
+		suite.True(
+			fc.Now().Add(TestInterval).Equal(t.When()),
+		)
+
+		suite.True(t.Fire())
+		suite.requireSignal(called, Immediate)
+
+		suite.False(t.Fire())
+		suite.requireNoSignal(called, Immediate)
+	})
+
 	suite.Run("Add", func() {
 		t, fc, called := suite.newAfterFunc(TestInterval)
+		suite.True(
+			fc.Now().Add(TestInterval).Equal(t.When()),
+		)
 
 		fc.Add(-time.Second)
 		suite.requireNoSignal(called, Immediate)
@@ -108,13 +118,14 @@ func (suite *FakeTimerSuite) TestAfterFunc() {
 
 		fc.Add(TestInterval)
 		suite.requireSignal(called, Immediate)
-
-		ft := t.(*fakeTimer)
-		suite.True(ft.onAdvance(suite.now))
+		suite.False(t.Fire())
 	})
 
 	suite.Run("Set", func() {
 		t, fc, called := suite.newAfterFunc(TestInterval)
+		suite.True(
+			fc.Now().Add(TestInterval).Equal(t.When()),
+		)
 
 		fc.Set(suite.now.Add(-time.Hour))
 		suite.requireNoSignal(called, Immediate)
@@ -124,9 +135,7 @@ func (suite *FakeTimerSuite) TestAfterFunc() {
 
 		fc.Set(suite.now.Add(TestInterval))
 		suite.requireSignal(called, Immediate)
-
-		ft := t.(*fakeTimer)
-		suite.True(ft.onAdvance(suite.now))
+		suite.False(t.Fire())
 	})
 
 	suite.Run("StopReset", func() {
