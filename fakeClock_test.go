@@ -50,7 +50,7 @@ func (suite *FakeClockSuite) TestSleep() {
 				fc.Sleep(interval)
 			}()
 
-			s := suite.requireReceive(onSleep, Immediate).(Sleeper)
+			s := suite.requireReceive(onSleep, WaitALittle).(Sleeper)
 			suite.Require().NotNil(s)
 			suite.requireNoSignal(removed, Immediate)
 
@@ -95,8 +95,11 @@ func (suite *FakeClockSuite) TestAfter() {
 
 	ch := fc.After(TestInterval)
 	suite.Require().NotNil(ch)
-	suite.requireReceiveEqual(onTimer, TestInterval, Immediate)
 	suite.requireNoSignal(removed, Immediate)
+
+	t := suite.requireReceive(onTimer, Immediate).(FakeTimer)
+	suite.Require().NotNil(t)
+	suite.True(ch == t.C())
 }
 
 func (suite *FakeClockSuite) TestAfterFunc() {
@@ -159,7 +162,7 @@ func (suite *FakeClockSuite) TestTick() {
 
 	ft := suite.requireReceive(onTicker, Immediate).(FakeTicker)
 	suite.Require().NotNil(ft)
-	suite.Same(ch, ft.C())
+	suite.True(ch == ft.C())
 	suite.requireNoSignal(removed, Immediate)
 }
 

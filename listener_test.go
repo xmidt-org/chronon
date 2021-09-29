@@ -17,35 +17,15 @@ func (suite *ListenersSuite) SetupSuite() {
 	suite.now = time.Now()
 }
 
-func (suite *ListenersSuite) TestAdd() {
-	ls := new(listeners)
+func (suite *ListenersSuite) TestAddRemove() {
+	var (
+		mock1 = new(mockListener)
+		mock2 = new(mockListener)
+		mock3 = new(mockListener)
+		mock4 = new(mockListener)
 
-	mock1 := new(mockListener)
-	mock1.ExpectOnUpdate(suite.now, continueUpdates).Times(3)
-
-	ls.add(mock1)
-	ls.onUpdate(suite.now) // mock1
-
-	// idempotent
-	ls.add(mock1)
-	ls.onUpdate(suite.now) // mock1 again
-
-	mock2 := new(mockListener)
-	mock2.ExpectOnUpdate(suite.now, continueUpdates).Once()
-	ls.add(mock2)
-	ls.onUpdate(suite.now) // mock1 and mock2
-
-	mock1.AssertExpectations(suite.T())
-	mock2.AssertExpectations(suite.T())
-}
-
-func (suite *ListenersSuite) TestRemove() {
-	ls := new(listeners)
-
-	mock1 := new(mockListener)
-	mock2 := new(mockListener)
-	mock3 := new(mockListener)
-	mock4 := new(mockListener)
+		ls = new(listeners)
+	)
 
 	mock1.ExpectOnUpdate(suite.now, continueUpdates).Twice()
 	mock2.ExpectOnUpdate(suite.now, continueUpdates).Twice()
@@ -53,6 +33,7 @@ func (suite *ListenersSuite) TestRemove() {
 
 	// mocks 1, 2, and 3 will be left in
 	ls.add(mock1)
+	ls.add(mock1) // idempotent
 	ls.add(mock2)
 	ls.remove(mock1)
 	ls.remove(mock1) // idempotent
@@ -73,7 +54,7 @@ func (suite *ListenersSuite) TestRemove() {
 	mock4.AssertExpectations(suite.T())
 }
 
-func (suite *ListenersSuite) TestOnAdvance() {
+func (suite *ListenersSuite) TestOnUpdate() {
 	ls := new(listeners)
 
 	mock1 := new(mockListener)

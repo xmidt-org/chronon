@@ -103,19 +103,21 @@ func (fc *FakeClock) Until(t time.Time) (d time.Duration) {
 
 // Sleep blocks until this clock is advanced sufficiently so that
 // the given duration elapses.  If d is nonpositive, this function
-// immediately returns exactly as with time.Sleep.
+// immediately returns exactly as with time.Sleep.  However, in all
+// cases a Sleeper is dispatched to any channels registered with NotifyOnSleep.
 //
 // If d is positive, then any channel registered with NotifyOnSleep
 // will receive d prior to blocking.
 func (fc *FakeClock) Sleep(d time.Duration) {
-	if d <= 0 {
-		// consistent with time.Sleep
-		return
-	}
-
 	fc.lock.Lock()
 	sleeper := newSleeperAt(fc, fc.now.Add(d))
+
+	// if the duration was nonpositive, the sleeper will immediately
+	// close its channel and won't be added as a listener.  This makes
+	// sure that there is still a Sleeper dispatched to any waiting
+	// channels while preserving the behavior of time.Sleep.
 	fc.listeners.register(fc.now, sleeper)
+
 	fc.onSleeper.notify(sleeper)
 	fc.lock.Unlock()
 
