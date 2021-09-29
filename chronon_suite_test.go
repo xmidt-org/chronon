@@ -41,9 +41,30 @@ func (suite *ChrononSuite) newFakeClock() *FakeClock {
 	return fc
 }
 
+// newSleeper spawns a goroutine that is blocked in a FakeClock.Sleep(d) call.  The Sleeper,
+// containing FakeClock, and a done channel are returned for tests to manipulate.  The done
+// channel is closed when Sleep returns.
+func (suite *ChrononSuite) newSleeper(d time.Duration) (Sleeper, *FakeClock, <-chan struct{}) {
+	suite.T().Helper()
+
+	var (
+		fc      = suite.newFakeClock()
+		onSleep = make(chan Sleeper)
+		done    = make(chan struct{})
+	)
+
+	go func() {
+		defer close(done)
+		fc.Sleep(d)
+	}()
+
+	s := suite.requireReceive(onSleep, Immediate).(Sleeper)
+	return s, fc, done
+}
+
 // newFakeTimer creates a fake timer and a *FakeClock to control it.
 // Standard assertions are run against both the clock and the timer.
-func (suite *ChrononSuite) newFakeTimer(d time.Duration) (Timer, *FakeClock) {
+func (suite *ChrononSuite) newFakeTimer(d time.Duration) (FakeTimer, *FakeClock) {
 	suite.T().Helper()
 	fc := suite.newFakeClock()
 
@@ -57,12 +78,12 @@ func (suite *ChrononSuite) newFakeTimer(d time.Duration) (Timer, *FakeClock) {
 		suite.requireSignal(t.C(), Immediate)
 	}
 
-	return t, fc
+	return t.(FakeTimer), fc
 }
 
 // newAfterFunc creates a delayed function using AfterFunc and runs standard assertions.
 // The returned channel is signaled when the function is called.
-func (suite *ChrononSuite) newAfterFunc(d time.Duration) (Timer, *FakeClock, <-chan struct{}) {
+func (suite *ChrononSuite) newAfterFunc(d time.Duration) (FakeTimer, *FakeClock, <-chan struct{}) {
 	suite.T().Helper()
 	fc := suite.newFakeClock()
 
@@ -71,7 +92,7 @@ func (suite *ChrononSuite) newAfterFunc(d time.Duration) (Timer, *FakeClock, <-c
 	suite.Require().NotNil(t)
 	suite.Require().Nil(t.C())
 
-	return t, fc, called
+	return t.(FakeTimer), fc, called
 }
 
 // newFakeTicker creates a fake ticker and a fake clock to control it with.

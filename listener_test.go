@@ -21,19 +21,19 @@ func (suite *ListenersSuite) TestAdd() {
 	ls := new(listeners)
 
 	mock1 := new(mockListener)
-	mock1.ExpectOnAdvance(suite.now, false).Times(3)
+	mock1.ExpectOnUpdate(suite.now, continueUpdates).Times(3)
 
 	ls.add(mock1)
-	ls.onAdvance(suite.now) // mock1
+	ls.onUpdate(suite.now) // mock1
 
 	// idempotent
 	ls.add(mock1)
-	ls.onAdvance(suite.now) // mock1 again
+	ls.onUpdate(suite.now) // mock1 again
 
 	mock2 := new(mockListener)
-	mock2.ExpectOnAdvance(suite.now, false).Once()
+	mock2.ExpectOnUpdate(suite.now, continueUpdates).Once()
 	ls.add(mock2)
-	ls.onAdvance(suite.now) // mock1 and mock2
+	ls.onUpdate(suite.now) // mock1 and mock2
 
 	mock1.AssertExpectations(suite.T())
 	mock2.AssertExpectations(suite.T())
@@ -47,9 +47,9 @@ func (suite *ListenersSuite) TestRemove() {
 	mock3 := new(mockListener)
 	mock4 := new(mockListener)
 
-	mock1.ExpectOnAdvance(suite.now, false).Twice()
-	mock2.ExpectOnAdvance(suite.now, false).Twice()
-	mock3.ExpectOnAdvance(suite.now, false).Twice()
+	mock1.ExpectOnUpdate(suite.now, continueUpdates).Twice()
+	mock2.ExpectOnUpdate(suite.now, continueUpdates).Twice()
+	mock3.ExpectOnUpdate(suite.now, continueUpdates).Twice()
 
 	// mocks 1, 2, and 3 will be left in
 	ls.add(mock1)
@@ -64,8 +64,8 @@ func (suite *ListenersSuite) TestRemove() {
 
 	ls.add(mock1)
 
-	ls.onAdvance(suite.now)
-	ls.onAdvance(suite.now) // idempotent, since all return false
+	ls.onUpdate(suite.now)
+	ls.onUpdate(suite.now) // idempotent, since all return continueUpdates
 
 	mock1.AssertExpectations(suite.T())
 	mock2.AssertExpectations(suite.T())
@@ -80,20 +80,20 @@ func (suite *ListenersSuite) TestOnAdvance() {
 	mock2 := new(mockListener)
 	mock3 := new(mockListener)
 
-	mock1.ExpectOnAdvance(suite.now, false).Once()
-	mock1.ExpectOnAdvance(suite.now, true).Once()
-	mock2.ExpectOnAdvance(suite.now, true).Once()
-	mock3.ExpectOnAdvance(suite.now, false).Twice()
-	mock3.ExpectOnAdvance(suite.now, true).Once()
+	mock1.ExpectOnUpdate(suite.now, continueUpdates).Once()
+	mock1.ExpectOnUpdate(suite.now, stopUpdates).Once()
+	mock2.ExpectOnUpdate(suite.now, stopUpdates).Once()
+	mock3.ExpectOnUpdate(suite.now, continueUpdates).Twice()
+	mock3.ExpectOnUpdate(suite.now, stopUpdates).Once()
 
 	ls.add(mock1)
 	ls.add(mock2)
 	ls.add(mock3)
 
-	ls.onAdvance(suite.now) // mock2 should have been removed
-	ls.onAdvance(suite.now) // mock1 should have been removed
-	ls.onAdvance(suite.now) // mock3 should have been removed
-	ls.onAdvance(suite.now) // should be empty now
+	ls.onUpdate(suite.now) // mock2 should have been removed
+	ls.onUpdate(suite.now) // mock1 should have been removed
+	ls.onUpdate(suite.now) // mock3 should have been removed
+	ls.onUpdate(suite.now) // should be empty now
 
 	mock1.AssertExpectations(suite.T())
 	mock2.AssertExpectations(suite.T())

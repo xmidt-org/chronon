@@ -66,6 +66,7 @@ func (ft *fakeTimer) Fire() (fired bool) {
 	ft.fc.doWith(
 		func(_ time.Time, ls *listeners) {
 			if fired = ls.active(ft); fired {
+				ls.remove(ft)
 				ft.fire(ft.when)
 			}
 		},

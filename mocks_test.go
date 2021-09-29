@@ -10,11 +10,11 @@ type mockListener struct {
 	mock.Mock
 }
 
-func (m *mockListener) onAdvance(t time.Time) bool {
+func (m *mockListener) onUpdate(t time.Time) updateResult {
 	args := m.Called(t)
-	return args.Bool(0)
+	return args.Get(0).(updateResult)
 }
 
-func (m *mockListener) ExpectOnAdvance(t time.Time, v bool) *mock.Call {
-	return m.On("onAdvance", t).Return(v)
+func (m *mockListener) ExpectOnUpdate(t time.Time, r updateResult) *mock.Call {
+	return m.On("onUpdate", t).Return(r)
 }

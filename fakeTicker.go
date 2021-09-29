@@ -8,6 +8,8 @@ import (
 // FakeTicker represents a Ticker which can be manually controlled, either by
 // advancing its containing fake clock or through methods of this interface.
 type FakeTicker interface {
+	Ticker
+
 	// When returns the next time at which a tick will fire.
 	When() time.Time
 

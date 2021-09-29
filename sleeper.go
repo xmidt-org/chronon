@@ -15,11 +15,15 @@ type Sleeper interface {
 
 	// Wakeup forces the sleeping goroutine to awaken.  Neither the fake clock's
 	// notion of the current time nor this Sleeper's When time are affected
-	// by this method.
+	// by this method.  This method is idempotent:  invoking it more than once
+	// has no further effect.
+	//
+	// If the fake clock's time is important to update as a result of sleeping,
+	// use FakeClock.Set with the value of When.
 	Wakeup() bool
 }
 
-// sleeper represents a simple listener that wakes up at a fixed time.
+// sleeper is the internal Sleeper implementation.
 type sleeper struct {
 	fc *FakeClock
 

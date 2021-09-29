@@ -1,6 +1,8 @@
 package chronon
 
-import "time"
+import (
+	"time"
+)
 
 type updateResult int
 

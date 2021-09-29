@@ -147,12 +147,14 @@ func (fc *FakeClock) StopOnSleep(ch chan<- Sleeper) {
 // NewTimer creates a Timer that fires when this FakeClock has been advanced
 // by at least the given duration.  The returned timer can be stopped or reset in
 // the usual fashion, which will affect what happens when the FakeClock is advanced.
+//
+// The Timer returned by this method can always be cast to a FakeTimer.
 func (fc *FakeClock) NewTimer(d time.Duration) Timer {
 	fc.lock.Lock()
 	ft := newFakeTimer(fc, fc.now.Add(d))
 
 	fc.listeners.register(fc.now, ft)
-	fc.onSleeper.notify(ft)
+	fc.onTimer.notify(ft)
 
 	fc.lock.Unlock()
 	return ft
@@ -167,6 +169,8 @@ func (fc *FakeClock) After(d time.Duration) <-chan time.Time {
 // by at least the given duration.  The returned Timer can be used to cancel the
 // execution, as with time.AfterFunc.  The returned Timer from this method is
 // always a *FakeTimer, and its C() method always returns nil.
+//
+// The Timer returned by this method can always be cast to a FakeTimer.
 func (fc *FakeClock) AfterFunc(d time.Duration, f func()) Timer {
 	fc.lock.Lock()
 	ft := newAfterFunc(fc, fc.now.Add(d), func(time.Time) { f() })
@@ -199,6 +203,8 @@ func (fc *FakeClock) StopOnTimer(ch chan<- FakeTimer) {
 // NewTicker creates a Ticker that fires when this FakeClock is advanced by
 // increments of the given duration.  The returned ticker can be stopped or
 // reset in the usual fashion.
+//
+// The Ticker returned from this method can always be cast to a FakeTicker.
 func (fc *FakeClock) NewTicker(d time.Duration) Ticker {
 	fc.lock.Lock()
 	ft := newFakeTicker(fc, d, fc.now)
