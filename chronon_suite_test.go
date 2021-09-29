@@ -53,12 +53,16 @@ func (suite *ChrononSuite) newSleeper(d time.Duration) (Sleeper, *FakeClock, <-c
 		done    = make(chan struct{})
 	)
 
+	fc.NotifyOnSleep(onSleep)
+
 	go func() {
 		defer close(done)
 		fc.Sleep(d)
 	}()
 
-	s := suite.requireReceive(onSleep, Immediate).(Sleeper)
+	s := suite.requireReceive(onSleep, WaitALittle).(Sleeper)
+	fc.StopOnSleep(onSleep)
+
 	return s, fc, done
 }
 
