@@ -182,7 +182,7 @@ func (fc *FakeClock) AfterFunc(d time.Duration, f func()) Timer {
 // through this fake clock.  This includes implicit timers, such as with After and AfterFunc.
 //
 // Test code that uses this method can be notified when code under test creates timers.
-func (fc *FakeClock) NotifyOnTimer(ch chan<- time.Duration) {
+func (fc *FakeClock) NotifyOnTimer(ch chan<- FakeTimer) {
 	fc.lock.Lock()
 	fc.onTimer.add(ch)
 	fc.lock.Unlock()
@@ -190,7 +190,7 @@ func (fc *FakeClock) NotifyOnTimer(ch chan<- time.Duration) {
 
 // StopOnTimer removes a channel from the list of channels that receive notifications
 // for timers.  If the given channel is not present, this method does nothing.
-func (fc *FakeClock) StopOnTimer(ch chan<- time.Duration) {
+func (fc *FakeClock) StopOnTimer(ch chan<- FakeTimer) {
 	fc.lock.Lock()
 	fc.onTimer.remove(ch)
 	fc.lock.Unlock()
@@ -218,7 +218,7 @@ func (fc *FakeClock) Tick(d time.Duration) <-chan time.Time {
 // through this fake clock.  This includes implicit tickers, such as Tick.
 //
 // Test code that uses this method can be notified when code under test creates tickers.
-func (fc *FakeClock) NotifyOnTicker(ch chan<- time.Duration) {
+func (fc *FakeClock) NotifyOnTicker(ch chan<- FakeTicker) {
 	fc.lock.Lock()
 	fc.onTicker.add(ch)
 	fc.lock.Unlock()
@@ -226,7 +226,7 @@ func (fc *FakeClock) NotifyOnTicker(ch chan<- time.Duration) {
 
 // StopOnTicker removes a channel from the list of channels that receive notifications
 // for timers.  If the given channel is not present, this method does nothing.
-func (fc *FakeClock) StopOnTicker(ch chan<- time.Duration) {
+func (fc *FakeClock) StopOnTicker(ch chan<- FakeTicker) {
 	fc.lock.Lock()
 	fc.onTicker.remove(ch)
 	fc.lock.Unlock()

@@ -29,8 +29,7 @@ type fakeTimer struct {
 	c chan time.Time
 	f func(time.Time)
 
-	when  time.Time
-	fired bool // whether a time has been sent on c since creation or the last reset
+	when time.Time
 }
 
 // newfakeTimer contructs a fakeTimer with a given FakeClock container and
@@ -53,6 +52,28 @@ func newAfterFunc(fc *FakeClock, when time.Time, f func(time.Time)) *fakeTimer {
 	}
 }
 
+func (ft *fakeTimer) When() (t time.Time) {
+	ft.fc.doWith(
+		func(time.Time, *listeners) {
+			t = ft.when
+		},
+	)
+
+	return
+}
+
+func (ft *fakeTimer) Fire() (fired bool) {
+	ft.fc.doWith(
+		func(_ time.Time, ls *listeners) {
+			if fired = ls.active(ft); fired {
+				ft.fire(ft.when)
+			}
+		},
+	)
+
+	return
+}
+
 // fire handles dispatching the time event appropriately.  Depending
 // upon how this timer was created, this will be either sending the
 // time on a channel or invoking an arbitrary function.
@@ -69,12 +90,7 @@ func (ft *fakeTimer) fire(t time.Time) {
 // method returns true which indicates that the containing FakeClock should remove it
 // from its callbacks.  Otherwise, this method returns false.
 func (ft *fakeTimer) onUpdate(newNow time.Time) updateResult {
-	if ft.fired {
-		return stopUpdates // previously triggered
-	}
-
 	if equalOrAfter(newNow, ft.when) {
-		ft.fired = true
 		ft.fire(newNow)
 		return stopUpdates
 	}
@@ -93,20 +109,18 @@ func (ft *fakeTimer) C() <-chan time.Time {
 }
 
 // Reset has all the same semantics as time.Timer.Reset.  This method returns true
-// if this fakeTimer had been stopped or fired a timer event, false otherwise.
+// if this fakeTimer was active, false if it had been stopped or fired its event.
 //
 // This method is atomic with respect to the containing FakeClock.  In particular,
 // this means that if the C() channel was not drained, this method can cause a deadlock.
 func (ft *fakeTimer) Reset(d time.Duration) (rescheduled bool) {
 	ft.fc.doWith(
 		func(now time.Time, ls *listeners) {
-			rescheduled = !ft.fired
+			rescheduled = ls.active(ft)
 			ft.when = now.Add(d)
-			ft.fired = false
 
 			if equalOrAfter(now, ft.when) {
 				ls.remove(ft)
-				ft.fired = true
 				ft.fire(now)
 			} else if !rescheduled {
 				ls.add(ft)
@@ -123,8 +137,7 @@ func (ft *fakeTimer) Reset(d time.Duration) (rescheduled bool) {
 func (ft *fakeTimer) Stop() (stopped bool) {
 	ft.fc.doWith(
 		func(now time.Time, ls *listeners) {
-			stopped = !ft.fired
-			ft.fired = true
+			stopped = ls.active(ft)
 			ls.remove(ft)
 		},
 	)

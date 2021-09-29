@@ -36,6 +36,12 @@ func (ls *listeners) onUpdate(t time.Time) {
 	}
 }
 
+// active tests if the given listener is active, i.e. present in this
+// set of listeners.
+func (ls listeners) active(v listener) bool {
+	return ls[v]
+}
+
 // register performs initialization for the given listener by invoking
 // it's onAdvance method for the first time.  If the listener returns continueUpdates,
 // it will be added to this listeners so that it receives future updates.

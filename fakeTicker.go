@@ -5,6 +5,20 @@ import (
 	"time"
 )
 
+// FakeTicker represents a Ticker which can be manually controlled, either by
+// advancing its containing fake clock or through methods of this interface.
+type FakeTicker interface {
+	// When returns the next time at which a tick will fire.
+	When() time.Time
+
+	// Fire forcibly sends a tick, unless this ticker is not active.  This
+	// method returns true if the tick was sent, false if this ticker had been stopped.
+	//
+	// This method does not update the fake clock's current time or the
+	// return value from When.
+	Fire() bool
+}
+
 // fakeTicker is a time.Ticker implementation driven by a containing FakeClock.
 type fakeTicker struct {
 	fc *FakeClock
@@ -26,6 +40,29 @@ func newFakeTicker(fc *FakeClock, tick time.Duration, start time.Time) *fakeTick
 		tick: tick,
 		next: start.Add(tick),
 	}
+}
+
+func (ft *fakeTicker) When() (t time.Time) {
+	ft.fc.doWith(
+		func(time.Time, *listeners) {
+			t = ft.next
+		},
+	)
+
+	return
+}
+
+func (ft *fakeTicker) Fire() (fired bool) {
+	ft.fc.doWith(
+		func(_ time.Time, ls *listeners) {
+			fired = ls.active(ft)
+			if fired {
+				sendTime(ft.c, ft.next)
+			}
+		},
+	)
+
+	return
 }
 
 // onUpdate handles dispatching any tick events to the channel based on
