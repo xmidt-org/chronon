@@ -15,6 +15,9 @@ type FakeTimer interface {
 
 	// Fire forces this FakeTimer to fire its event.  Neither the containing
 	// fake clock nor the value returned by When are affected by this method.
+	// If the actual clock time is important to timer code, test code can
+	// make the timer fire by invoking FakeClock.Set and passing the value
+	// returned by When.
 	//
 	// This method returns true if this timer had been active, false if
 	// the timer had already fired.

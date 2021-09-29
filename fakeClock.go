@@ -5,24 +5,10 @@ import (
 	"time"
 )
 
-// Adder represents a source of time values that can be modified
-// by adding a duration.  *FakeClock implements this interface.
-type Adder interface {
-	// Add adjusts the current time by the given delta.  The delta
-	// can be negative or 0.  This method returns the new value
-	// of the current time.
-	Add(time.Duration) time.Time
-}
-
-// Setter represents a source of time values that can be updated
-// using absolute time.  *FakeClock implements this interface.
-type Setter interface {
-	// Set adjusts the current time to the given value.
-	Set(time.Time)
-}
-
 // FakeClock is a Clock implementation that allows control over how
-// the clock advances.
+// the clock is updated.  The Add and Set methods control a FakeClock's
+// notion of the current time in addition to affecting the various objects
+// created through this clock, e.g. Timer.
 type FakeClock struct {
 	lock sync.RWMutex
 
@@ -34,8 +20,6 @@ type FakeClock struct {
 }
 
 var _ Clock = (*FakeClock)(nil)
-var _ Adder = (*FakeClock)(nil)
-var _ Setter = (*FakeClock)(nil)
 
 // NewFakeClock creates a FakeClock that uses the given time as the
 // initial current time.
@@ -53,9 +37,11 @@ func (fc *FakeClock) doWith(f func(time.Time, *listeners)) {
 	f(fc.now, &fc.listeners)
 }
 
-// Add satisfies the Adder interface.  Updating this fake clock's
-// time through this method is atomic with respect to all the other
-// methods.
+// Add updates this fake clock's current time.  The duration can be nonpositive,
+// in which case the clock moves backwards or is unaffected.
+//
+// Anytime a FakeClock's current time changes via this method or Set, any objects
+// created through this clock are updated as appropriate.
 func (fc *FakeClock) Add(d time.Duration) (now time.Time) {
 	fc.lock.Lock()
 	now = fc.now.Add(d)
@@ -66,8 +52,22 @@ func (fc *FakeClock) Add(d time.Duration) (now time.Time) {
 	return
 }
 
-// Set is similar to Advance, except that it sets an absolute time instead
+// Set is similar to Add, except that it sets an absolute time instead
 // of moving this fake clock's time by a certain delta.
+//
+// A common use case is to force the firing of an object by passing its When value:
+//
+//   fc := NewFakeClock(time.Now())
+//   onTimer := make(chan FakeTimer)
+//   fc.NotifyOnTimer(onTimer)
+//
+//   // ... spawn goroutines that run production code
+//
+//   // this blocks until production code obtains a timer
+//   t := <-onTimer
+//
+//   // force the timer to fire by updating the clock
+//   fc.Set(t.When())
 func (fc *FakeClock) Set(t time.Time) {
 	fc.lock.Lock()
 	fc.now = t

@@ -10,14 +10,17 @@ import (
 type FakeTicker interface {
 	Ticker
 
-	// When returns the next time at which a tick will fire.
+	// When returns the next time at which a tick will fire.  This value will
+	// change after each tick or if this ticker is reset.
 	When() time.Time
 
 	// Fire forcibly sends a tick, unless this ticker is not active.  This
 	// method returns true if the tick was sent, false if this ticker had been stopped.
 	//
 	// This method does not update the fake clock's current time or the
-	// return value from When.
+	// return value from When.  If the actual time for each tick is important
+	// to production code, force ticks to fire by using FakeClock.Set and passing
+	// the value returned by When.
 	Fire() bool
 }
 

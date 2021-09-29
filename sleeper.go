@@ -10,7 +10,8 @@ import (
 // NotifyOnSleep.
 type Sleeper interface {
 	// When returns the point in time at which the sleeping goroutine will
-	// wake up.
+	// wake up.  This value will be the duration passed to Sleep added to
+	// the containing FakeClock's Now().
 	When() time.Time
 
 	// Wakeup forces the sleeping goroutine to awaken.  Neither the fake clock's

@@ -41,9 +41,31 @@ type Timer interface {
 	Stop() bool
 }
 
-// Time represents a notion of a local time value.  This interface may be backed by
-// the time package or by an artificial source of time, such as a FakeClock.
-type Time interface {
+// Clock represents a standard set of time operations.  Implementations are
+// drop-in replacements for the time package.
+//
+// A typical use case is to establish a Clock using SystemClock() in production
+// code.  Test code can then alter the injected instance to a *FakeClock after the fact:
+//
+//   type MyService struct {
+//     clock chronon.Clock
+//   }
+//
+//   func NewMyService() *MyService {
+//     return &MyService{
+//       clock: chronon.SystemClock(),
+//     }
+//   }
+//
+//   func TestMyService(t *testing.T) {
+//     s := NewMyService()
+//     fc := chronon.NewFakeClock()
+//     s.clock = fc
+//
+//     // continue with tests, updating the fake clock to drive
+//     // concurrent, time-dependent code
+//   }
+type Clock interface {
 	// Now returns ths instance's notion of the current time.
 	Now() time.Time
 
@@ -53,12 +75,6 @@ type Time interface {
 	// Until returns the duration between this instance's current time and
 	// the given time.
 	Until(t time.Time) time.Duration
-}
-
-// Clock represents a standard set of time operations.  Implementations are
-// drop-in replacements for the time package.
-type Clock interface {
-	Time
 
 	// Sleep blocks until this Clock believes that the given
 	// time duration has elapsed.
