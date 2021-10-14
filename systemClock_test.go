@@ -117,6 +117,16 @@ func (suite *SystemClockSuite) TestNewTicker() {
 	suite.requireSignal(t.C(), 16*time.Millisecond)
 }
 
+func (suite *SystemClockSuite) TestIsSystemClock() {
+	suite.True(
+		IsSystemClock(SystemClock()),
+	)
+
+	suite.False(
+		IsSystemClock(NewFakeClock(time.Now())),
+	)
+}
+
 func TestSystemClock(t *testing.T) {
 	suite.Run(t, new(SystemClockSuite))
 }
