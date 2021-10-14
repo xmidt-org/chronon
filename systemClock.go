@@ -87,3 +87,11 @@ func (sc systemClock) NewTimer(d time.Duration) Timer {
 func SystemClock() Clock {
 	return systemClock{}
 }
+
+// IsSystemClock tests if c is actually a Clock returned by SystemClock().
+// This function is primarily useful in test code to verify that production
+// code correctly initializes itself.
+func IsSystemClock(c Clock) bool {
+	_, ok := c.(systemClock)
+	return ok
+}
