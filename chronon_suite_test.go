@@ -109,7 +109,7 @@ func (suite *ChrononSuite) newFakeTicker(d time.Duration) (Ticker, *FakeClock) {
 	suite.Require().NotNil(t)
 	suite.Require().NotNil(t.C())
 
-	// a valid ticker's channel should never be signalled when first created
+	// a valid ticker's channel should never be signaled when first created
 	suite.requireNoSignal(t.C(), Immediate)
 
 	return t, fc
@@ -163,7 +163,7 @@ func (suite *ChrononSuite) requireSignal(ch interface{}, waitFor time.Duration) 
 	chosen, _, _ := suite.selectOn(ch, waitFor)
 	suite.Require().Truef(
 		chosen == 0,
-		"The channel [%T] should have been signalled",
+		"The channel [%T] should have been signaled",
 		ch,
 	)
 }
@@ -173,7 +173,7 @@ func (suite *ChrononSuite) requireNoSignal(ch interface{}, waitFor time.Duration
 	chosen, _, _ := suite.selectOn(ch, waitFor)
 	suite.Require().Truef(
 		chosen == 1,
-		"The channel [%T] should NOT have been signalled",
+		"The channel [%T] should NOT have been signaled",
 		ch,
 	)
 }
