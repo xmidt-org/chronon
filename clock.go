@@ -45,26 +45,7 @@ type Timer interface {
 // drop-in replacements for the time package.
 //
 // A typical use case is to establish a Clock using SystemClock() in production
-// code.  Test code can then alter the injected instance to a *FakeClock after the fact:
-//
-//   type MyService struct {
-//     clock chronon.Clock
-//   }
-//
-//   func NewMyService() *MyService {
-//     return &MyService{
-//       clock: chronon.SystemClock(),
-//     }
-//   }
-//
-//   func TestMyService(t *testing.T) {
-//     s := NewMyService()
-//     fc := chronon.NewFakeClock()
-//     s.clock = fc
-//
-//     // continue with tests, updating the fake clock to drive
-//     // concurrent, time-dependent code
-//   }
+// code.  Test code can then alter the injected instance to a *FakeClock after the fact.
 type Clock interface {
 	// Now returns ths instance's notion of the current time.
 	Now() time.Time
