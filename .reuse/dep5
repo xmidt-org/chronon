@@ -3,10 +3,6 @@ Upstream-Name: chronon
 Upstream-Contact: John Bass <john_bass2@cable.comcast.com>
 Source: https://github.com/xmidt-org/chronon
 
-Files: .golangci.yml
-Copyright: SPDX-FileCopyrightText: 2024 Comcast Cable Communications Management, LLC
-License: Apache-2.0
-
 Files: go.mod
 Copyright: SPDX-FileCopyrightText: 2024 Comcast Cable Communications Management, LLC
 License: Apache-2.0
@@ -24,6 +20,14 @@ Copyright: SPDX-FileCopyrightText: 2024 Comcast Cable Communications Management,
 License: Apache-2.0
 
 Files: README.md
+Copyright: SPDX-FileCopyrightText: 2024 Comcast Cable Communications Management, LLC
+License: Apache-2.0
+
+Files: CONTRIBUTING.md
+Copyright: SPDX-FileCopyrightText: 2024 Comcast Cable Communications Management, LLC
+License: Apache-2.0
+
+Files: NOTICE
 Copyright: SPDX-FileCopyrightText: 2024 Comcast Cable Communications Management, LLC
 License: Apache-2.0
 
