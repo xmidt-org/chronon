@@ -97,7 +97,7 @@ func ExampleFakeClock_NewTicker() {
 				fmt.Println("tick")
 				receivedTick <- struct{}{}
 			case <-ctx.Done():
-				fmt.Println("code under test has been cancelled")
+				fmt.Println("code under test has been canceled")
 				return
 			}
 		}
@@ -129,5 +129,5 @@ func ExampleFakeClock_NewTicker() {
 	// code under test is now waiting for ticks on 20s
 	// tick
 	// tick
-	// code under test has been cancelled
+	// code under test has been canceled
 }

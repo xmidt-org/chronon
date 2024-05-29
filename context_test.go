@@ -28,7 +28,7 @@ func (suite *ContextSuite) TestGet() {
 func (suite *ContextSuite) TestWith() {
 	suite.Run("WithNil", func() {
 		ctx := With(context.Background(), nil)
-		suite.Same(context.Background(), ctx)
+		suite.Equal(context.Background(), ctx)
 	})
 
 	suite.Run("WithClock", func() {
