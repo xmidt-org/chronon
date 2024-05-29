@@ -55,19 +55,7 @@ func (fc *FakeClock) Add(d time.Duration) (now time.Time) {
 // Set is similar to Add, except that it sets an absolute time instead
 // of moving this fake clock's time by a certain delta.
 //
-// A common use case is to force the firing of an object by passing its When value:
-//
-//   fc := NewFakeClock(time.Now())
-//   onTimer := make(chan FakeTimer)
-//   fc.NotifyOnTimer(onTimer)
-//
-//   // ... spawn goroutines that run production code
-//
-//   // this blocks until production code obtains a timer
-//   t := <-onTimer
-//
-//   // force the timer to fire by updating the clock
-//   fc.Set(t.When())
+// A common use case is to force the firing of an object by passing its When value.
 func (fc *FakeClock) Set(t time.Time) {
 	fc.lock.Lock()
 	fc.now = t
