@@ -121,7 +121,7 @@ func (suite *ChrononSuite) newFakeTicker(d time.Duration) (Ticker, *FakeClock) {
 func (suite *ChrononSuite) selectOn(ch interface{}, waitFor time.Duration) (int, reflect.Value, bool) {
 	suite.T().Helper()
 	cases := []reflect.SelectCase{
-		reflect.SelectCase{
+		{
 			Dir:  reflect.SelectRecv,
 			Chan: reflect.ValueOf(ch),
 		},
